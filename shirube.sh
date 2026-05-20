@@ -25,8 +25,8 @@ __shirube_select_ghq() {
   ghq list --full-path | fzf --reverse --prompt='ghq> '
 }
 
-# Select a git worktree via fzf (supports ctrl-n to create new).
-# Output: line 1 = "select" or "new", line 2 = branch name.
+# Select a git worktree via fzf (supports ctrl-n/ctrl-d).
+# Output: line 1 = "select", "new", or "delete", line 2 = branch name.
 __shirube_select_worktree() {
   if ! command -v git &>/dev/null; then
     echo "shirube: git is not installed" >&2
@@ -40,8 +40,8 @@ __shirube_select_worktree() {
   local result query key selection
   result="$(git worktree list 2>/dev/null \
     | fzf --reverse --prompt='worktree> ' \
-          --header='ctrl-n: new worktree' \
-          --print-query --expect=ctrl-n)"
+          --header='ctrl-n: new / ctrl-d: delete' \
+          --print-query --expect=ctrl-n,ctrl-d)"
   [[ -z "$result" ]] && return 1
 
   query="$(sed -n '1p' <<< "$result")"
@@ -50,6 +50,10 @@ __shirube_select_worktree() {
 
   if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
     printf 'new\n%s' "$query"
+  elif [[ "$key" == "ctrl-d" && -n "$selection" ]]; then
+    local branch
+    branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
+    [[ -n "$branch" ]] && printf 'delete\n%s' "$branch"
   elif [[ -n "$selection" ]]; then
     local branch
     branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
@@ -57,8 +61,8 @@ __shirube_select_worktree() {
   fi
 }
 
-# Select a git branch via fzf (supports ctrl-n to create new).
-# Output: line 1 = "select" or "new", line 2 = branch name.
+# Select a git branch via fzf (supports ctrl-n/ctrl-d).
+# Output: line 1 = "select", "new", or "delete", line 2 = branch name.
 __shirube_select_branch() {
   if ! command -v git &>/dev/null; then
     echo "shirube: git is not installed" >&2
@@ -69,8 +73,8 @@ __shirube_select_branch() {
   result="$(git branch --all 2>/dev/null \
     | grep -v 'HEAD' \
     | fzf --reverse --prompt='branch> ' \
-          --header='ctrl-n: new branch' \
-          --print-query --expect=ctrl-n)"
+          --header='ctrl-n: new / ctrl-d: delete' \
+          --print-query --expect=ctrl-n,ctrl-d)"
   [[ -z "$result" ]] && return 1
 
   query="$(sed -n '1p' <<< "$result")"
@@ -79,6 +83,10 @@ __shirube_select_branch() {
 
   if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
     printf 'new\n%s' "$query"
+  elif [[ "$key" == "ctrl-d" && -n "$selection" ]]; then
+    local branch
+    branch="$(echo "$selection" | sed 's/^[* ]*//' | sed 's|^remotes/[^/]*/||')"
+    [[ -n "$branch" ]] && printf 'delete\n%s' "$branch"
   elif [[ -n "$selection" ]]; then
     local branch
     branch="$(echo "$selection" | sed 's/^[* ]*//' | sed 's|^remotes/[^/]*/||')"
@@ -134,7 +142,11 @@ if [[ -n "$ZSH_VERSION" ]]; then
     action="$(sed -n '1p' <<< "$result")"
     branch="$(sed -n '2p' <<< "$result")"
     zle push-line
-    BUFFER="git wt ${(q)branch}"
+    if [[ "$action" == "delete" ]]; then
+      BUFFER="git wt -d ${(q)branch}"
+    else
+      BUFFER="git wt ${(q)branch}"
+    fi
     zle accept-line
   }
   zle -N shirube-worktree-widget
@@ -153,6 +165,8 @@ if [[ -n "$ZSH_VERSION" ]]; then
     zle push-line
     if [[ "$action" == "new" ]]; then
       BUFFER="git checkout -b ${(q)branch}"
+    elif [[ "$action" == "delete" ]]; then
+      BUFFER="git branch -d ${(q)branch}"
     else
       BUFFER="git checkout ${(q)branch}"
     fi
@@ -214,7 +228,11 @@ elif [[ -n "$BASH_VERSION" ]]; then
     if [[ -n "$result" ]]; then
       action="$(sed -n '1p' <<< "$result")"
       branch="$(sed -n '2p' <<< "$result")"
-      git wt "$branch"
+      if [[ "$action" == "delete" ]]; then
+        git wt -d "$branch"
+      else
+        git wt "$branch"
+      fi
     fi
     READLINE_LINE=""
     READLINE_POINT=0
@@ -228,6 +246,8 @@ elif [[ -n "$BASH_VERSION" ]]; then
       branch="$(sed -n '2p' <<< "$result")"
       if [[ "$action" == "new" ]]; then
         git checkout -b "$branch"
+      elif [[ "$action" == "delete" ]]; then
+        git branch -d "$branch"
       else
         git checkout "$branch"
       fi
