@@ -11,6 +11,12 @@ if ! command -v fzf &>/dev/null; then
 fi
 
 # ==========================================================
+# Common fzf options
+# ==========================================================
+
+__SHIRUBE_FZF_OPTS="--reverse --border --height=80% --preview-window=right,50%"
+
+# ==========================================================
 # Common selection functions
 # ==========================================================
 
@@ -22,7 +28,10 @@ __shirube_select_ghq() {
     return 1
   fi
 
-  ghq list --full-path | fzf --reverse --prompt='ghq> '
+  ghq list --full-path | fzf $__SHIRUBE_FZF_OPTS \
+    --prompt='ghq> ' \
+    --border-label=' ghq ' \
+    --preview 'ls -p {}'
 }
 
 # Select a git worktree via fzf (supports ctrl-n/ctrl-r).
@@ -39,8 +48,11 @@ __shirube_select_worktree() {
 
   local result query key selection
   result="$(git worktree list 2>/dev/null \
-    | fzf --reverse --prompt='worktree> ' \
+    | fzf $__SHIRUBE_FZF_OPTS \
+          --prompt='worktree> ' \
+          --border-label=' worktree ' \
           --header='ctrl-n: new / ctrl-r: delete' \
+          --preview 'git -C {1} log --oneline -20' \
           --print-query --expect=ctrl-n,ctrl-r \
           --bind ctrl-r:accept)"
   [[ -z "$result" ]] && return 1
@@ -73,8 +85,11 @@ __shirube_select_branch() {
   local result query key selection
   result="$(git branch --all 2>/dev/null \
     | grep -v 'HEAD' \
-    | fzf --reverse --prompt='branch> ' \
+    | fzf $__SHIRUBE_FZF_OPTS \
+          --prompt='branch> ' \
+          --border-label=' branch ' \
           --header='ctrl-n: new / ctrl-r: delete' \
+          --preview 'git log --oneline --graph -20 $(echo {} | sed "s/^[* ]*//" | sed "s|^remotes/[^/]*/||")' \
           --print-query --expect=ctrl-n,ctrl-r \
           --bind ctrl-r:accept)"
   [[ -z "$result" ]] && return 1
@@ -105,7 +120,10 @@ __shirube_select_pr() {
   fi
 
   local line
-  line="$(gh pr list 2>/dev/null | fzf --reverse --prompt='pr> ')"
+  line="$(gh pr list 2>/dev/null | fzf $__SHIRUBE_FZF_OPTS \
+    --prompt='pr> ' \
+    --border-label=' pull request ' \
+    --preview 'gh pr view {1}')"
   [[ -n "$line" ]] && echo "$line" | awk '{print $1}'
 }
 
@@ -197,7 +215,10 @@ if [[ -n "$ZSH_VERSION" ]]; then
     local selected
     selected="$(fc -rl 1 \
       | awk '{ cmd=$0; sub(/^[ ]*[0-9]+\*?[ ]+/, "", cmd); if (!seen[cmd]++) print cmd }' \
-      | fzf --reverse --prompt='history> ' --query="$LBUFFER")"
+      | fzf $__SHIRUBE_FZF_OPTS --no-preview \
+            --prompt='history> ' \
+            --border-label=' history ' \
+            --query="$LBUFFER")"
     if [[ -z "$selected" ]]; then
       zle redisplay
       return 0
@@ -272,7 +293,10 @@ elif [[ -n "$BASH_VERSION" ]]; then
     local selected
     selected="$(builtin fc -lnr -2147483648 \
       | awk '!seen[$0]++' \
-      | fzf --reverse --prompt='history> ' --query="$READLINE_LINE")"
+      | fzf $__SHIRUBE_FZF_OPTS --no-preview \
+            --prompt='history> ' \
+            --border-label=' history ' \
+            --query="$READLINE_LINE")"
     if [[ -n "$selected" ]]; then
       READLINE_LINE="$selected"
       READLINE_POINT=${#READLINE_LINE}
