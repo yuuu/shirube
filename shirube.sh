@@ -25,32 +25,65 @@ __shirube_select_ghq() {
   ghq list --full-path | fzf --reverse --prompt='ghq> '
 }
 
-# Select a git worktree via fzf.
-# Prints the selected worktree directory path to stdout.
+# Select a git worktree via fzf (supports ctrl-n to create new).
+# Output: line 1 = "select" or "new", line 2 = branch name.
 __shirube_select_worktree() {
   if ! command -v git &>/dev/null; then
     echo "shirube: git is not installed" >&2
     return 1
   fi
+  if ! git wt --help &>/dev/null 2>&1; then
+    echo "shirube: git-wt is not installed" >&2
+    return 1
+  fi
 
-  local line
-  line="$(git worktree list 2>/dev/null | fzf --reverse --prompt='worktree> ')"
-  [[ -n "$line" ]] && echo "$line" | awk '{print $1}'
+  local result query key selection
+  result="$(git worktree list 2>/dev/null \
+    | fzf --reverse --prompt='worktree> ' \
+          --header='ctrl-n: new worktree' \
+          --print-query --expect=ctrl-n)"
+  [[ -z "$result" ]] && return 1
+
+  query="$(sed -n '1p' <<< "$result")"
+  key="$(sed -n '2p' <<< "$result")"
+  selection="$(sed -n '3p' <<< "$result")"
+
+  if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
+    printf 'new\n%s' "$query"
+  elif [[ -n "$selection" ]]; then
+    local branch
+    branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
+    [[ -n "$branch" ]] && printf 'select\n%s' "$branch"
+  fi
 }
 
-# Select a git branch via fzf.
-# Prints the selected branch name to stdout.
+# Select a git branch via fzf (supports ctrl-n to create new).
+# Output: line 1 = "select" or "new", line 2 = branch name.
 __shirube_select_branch() {
   if ! command -v git &>/dev/null; then
     echo "shirube: git is not installed" >&2
     return 1
   fi
 
-  git branch --all 2>/dev/null \
+  local result query key selection
+  result="$(git branch --all 2>/dev/null \
     | grep -v 'HEAD' \
     | fzf --reverse --prompt='branch> ' \
-    | sed 's/^[* ]*//' \
-    | sed 's|^remotes/[^/]*/||'
+          --header='ctrl-n: new branch' \
+          --print-query --expect=ctrl-n)"
+  [[ -z "$result" ]] && return 1
+
+  query="$(sed -n '1p' <<< "$result")"
+  key="$(sed -n '2p' <<< "$result")"
+  selection="$(sed -n '3p' <<< "$result")"
+
+  if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
+    printf 'new\n%s' "$query"
+  elif [[ -n "$selection" ]]; then
+    local branch
+    branch="$(echo "$selection" | sed 's/^[* ]*//' | sed 's|^remotes/[^/]*/||')"
+    [[ -n "$branch" ]] && printf 'select\n%s' "$branch"
+  fi
 }
 
 # Select a GitHub PR via fzf.
@@ -92,14 +125,16 @@ if [[ -n "$ZSH_VERSION" ]]; then
 
   shirube-worktree-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
-    local dir
-    dir="$(__shirube_select_worktree)"
-    if [[ -z "$dir" ]]; then
+    local result action branch
+    result="$(__shirube_select_worktree)"
+    if [[ -z "$result" ]]; then
       zle redisplay
       return 0
     fi
+    action="$(sed -n '1p' <<< "$result")"
+    branch="$(sed -n '2p' <<< "$result")"
     zle push-line
-    BUFFER="builtin cd -- ${(q)dir}"
+    BUFFER="git wt ${(q)branch}"
     zle accept-line
   }
   zle -N shirube-worktree-widget
@@ -107,14 +142,20 @@ if [[ -n "$ZSH_VERSION" ]]; then
 
   shirube-branch-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
-    local branch
-    branch="$(__shirube_select_branch)"
-    if [[ -z "$branch" ]]; then
+    local result action branch
+    result="$(__shirube_select_branch)"
+    if [[ -z "$result" ]]; then
       zle redisplay
       return 0
     fi
+    action="$(sed -n '1p' <<< "$result")"
+    branch="$(sed -n '2p' <<< "$result")"
     zle push-line
-    BUFFER="git checkout ${(q)branch}"
+    if [[ "$action" == "new" ]]; then
+      BUFFER="git checkout -b ${(q)branch}"
+    else
+      BUFFER="git checkout ${(q)branch}"
+    fi
     zle accept-line
   }
   zle -N shirube-branch-widget
@@ -168,20 +209,28 @@ elif [[ -n "$BASH_VERSION" ]]; then
   }
 
   __shirube_worktree() {
-    local dir
-    dir="$(__shirube_select_worktree)"
-    if [[ -n "$dir" ]]; then
-      builtin cd -- "$dir" || return 1
+    local result action branch
+    result="$(__shirube_select_worktree)"
+    if [[ -n "$result" ]]; then
+      action="$(sed -n '1p' <<< "$result")"
+      branch="$(sed -n '2p' <<< "$result")"
+      git wt "$branch"
     fi
     READLINE_LINE=""
     READLINE_POINT=0
   }
 
   __shirube_branch() {
-    local branch
-    branch="$(__shirube_select_branch)"
-    if [[ -n "$branch" ]]; then
-      git checkout "$branch"
+    local result action branch
+    result="$(__shirube_select_branch)"
+    if [[ -n "$result" ]]; then
+      action="$(sed -n '1p' <<< "$result")"
+      branch="$(sed -n '2p' <<< "$result")"
+      if [[ "$action" == "new" ]]; then
+        git checkout -b "$branch"
+      else
+        git checkout "$branch"
+      fi
     fi
     READLINE_LINE=""
     READLINE_POINT=0
