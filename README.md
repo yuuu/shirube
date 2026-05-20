@@ -8,7 +8,7 @@ Press shortcut keys in your shell to search and select:
 | `Ctrl+x g` | Select a ghq-managed Git repository and jump to it |
 | `Ctrl+x w` | Select a git worktree and jump to it (`Ctrl+n`: new / `Ctrl+r`: delete) |
 | `Ctrl+x b` | Select a git branch and check it out (`Ctrl+n`: new / `Ctrl+r`: delete) |
-| `Ctrl+x p` | Select a pull request from gh pr list and check it out |
+| `Ctrl+x p` | Select a pull request from gh pr list and check it out (`Ctrl+o`: open in browser) |
 | `Ctrl+r` | Select a command from history and execute it |
 
 Inspired by [anyframe](https://github.com/mollifier/anyframe).
