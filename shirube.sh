@@ -41,7 +41,8 @@ __shirube_select_worktree() {
   result="$(git worktree list 2>/dev/null \
     | fzf --reverse --prompt='worktree> ' \
           --header='ctrl-n: new / ctrl-d: delete' \
-          --print-query --expect=ctrl-n,ctrl-d)"
+          --print-query --expect=ctrl-n,ctrl-d \
+          --bind 'ctrl-d:accept')"
   [[ -z "$result" ]] && return 1
 
   query="$(sed -n '1p' <<< "$result")"
@@ -74,7 +75,8 @@ __shirube_select_branch() {
     | grep -v 'HEAD' \
     | fzf --reverse --prompt='branch> ' \
           --header='ctrl-n: new / ctrl-d: delete' \
-          --print-query --expect=ctrl-n,ctrl-d)"
+          --print-query --expect=ctrl-n,ctrl-d \
+          --bind 'ctrl-d:accept')"
   [[ -z "$result" ]] && return 1
 
   query="$(sed -n '1p' <<< "$result")"
