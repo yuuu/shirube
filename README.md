@@ -11,7 +11,7 @@ Press shortcut keys in your shell to search and select:
 | `Ctrl+x Ctrl+p` | Select a pull request from gh pr list and check it out |
 | `Ctrl+r` | Select a command from history and execute it |
 
-Inspired by [anyframe](https://github.com/yuuu/anyframe).
+Inspired by [anyframe](https://github.com/mollifier/anyframe).
 
 ## Requirements
 
