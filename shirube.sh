@@ -129,7 +129,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
     zle accept-line
   }
   zle -N shirube-ghq-widget
-  bindkey '^x^g' shirube-ghq-widget
+  bindkey '^xg' shirube-ghq-widget
 
   shirube-worktree-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
@@ -150,7 +150,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
     zle accept-line
   }
   zle -N shirube-worktree-widget
-  bindkey '^x^w' shirube-worktree-widget
+  bindkey '^xw' shirube-worktree-widget
 
   shirube-branch-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
@@ -173,7 +173,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
     zle accept-line
   }
   zle -N shirube-branch-widget
-  bindkey '^x^b' shirube-branch-widget
+  bindkey '^xb' shirube-branch-widget
 
   shirube-pr-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
@@ -188,7 +188,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
     zle accept-line
   }
   zle -N shirube-pr-widget
-  bindkey '^x^p' shirube-pr-widget
+  bindkey '^xp' shirube-pr-widget
 
   shirube-history-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
@@ -280,9 +280,9 @@ elif [[ -n "$BASH_VERSION" ]]; then
     fi
   }
 
-  bind -x '"\C-x\C-g": __shirube_ghq'
-  bind -x '"\C-x\C-w": __shirube_worktree'
-  bind -x '"\C-x\C-b": __shirube_branch'
-  bind -x '"\C-x\C-p": __shirube_pr'
+  bind -x '"\C-xg": __shirube_ghq'
+  bind -x '"\C-xw": __shirube_worktree'
+  bind -x '"\C-xb": __shirube_branch'
+  bind -x '"\C-xp": __shirube_pr'
   bind -x '"\C-r": __shirube_history'
 fi

@@ -5,10 +5,10 @@ Press shortcut keys in your shell to search and select:
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+x Ctrl+g` | Select a ghq-managed Git repository and jump to it |
-| `Ctrl+x Ctrl+w` | Select a git worktree and jump to it (`Ctrl+n`: new / `Ctrl+d`: delete) |
-| `Ctrl+x Ctrl+b` | Select a git branch and check it out (`Ctrl+n`: new / `Ctrl+d`: delete) |
-| `Ctrl+x Ctrl+p` | Select a pull request from gh pr list and check it out |
+| `Ctrl+x g` | Select a ghq-managed Git repository and jump to it |
+| `Ctrl+x w` | Select a git worktree and jump to it (`Ctrl+n`: new / `Ctrl+d`: delete) |
+| `Ctrl+x b` | Select a git branch and check it out (`Ctrl+n`: new / `Ctrl+d`: delete) |
+| `Ctrl+x p` | Select a pull request from gh pr list and check it out |
 | `Ctrl+r` | Select a command from history and execute it |
 
 Inspired by [anyframe](https://github.com/mollifier/anyframe).
