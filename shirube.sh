@@ -30,7 +30,6 @@ __shirube_select_ghq() {
 
   ghq list --full-path | fzf $__SHIRUBE_FZF_OPTS \
     --prompt='ghq> ' \
-    --border-label=' ghq ' \
     --preview 'ls -p {}'
 }
 
@@ -50,7 +49,6 @@ __shirube_select_worktree() {
   result="$(git worktree list 2>/dev/null \
     | fzf $__SHIRUBE_FZF_OPTS \
           --prompt='worktree> ' \
-          --border-label=' worktree ' \
           --header='ctrl-n: new / ctrl-r: delete' \
           --preview 'git -C {1} log --oneline -20' \
           --print-query --expect=ctrl-n,ctrl-r \
@@ -87,7 +85,6 @@ __shirube_select_branch() {
     | grep -v 'HEAD' \
     | fzf $__SHIRUBE_FZF_OPTS \
           --prompt='branch> ' \
-          --border-label=' branch ' \
           --header='ctrl-n: new / ctrl-r: delete' \
           --preview 'git log --oneline --graph -20 $(echo {} | sed "s/^[* ]*//" | sed "s|^remotes/[^/]*/||")' \
           --print-query --expect=ctrl-n,ctrl-r \
@@ -122,7 +119,6 @@ __shirube_select_pr() {
   local line
   line="$(gh pr list 2>/dev/null | fzf $__SHIRUBE_FZF_OPTS \
     --prompt='pr> ' \
-    --border-label=' pull request ' \
     --preview 'gh pr view {1}')"
   [[ -n "$line" ]] && echo "$line" | awk '{print $1}'
 }
@@ -215,9 +211,9 @@ if [[ -n "$ZSH_VERSION" ]]; then
     local selected
     selected="$(fc -rl 1 \
       | awk '{ cmd=$0; sub(/^[ ]*[0-9]+\*?[ ]+/, "", cmd); if (!seen[cmd]++) print cmd }' \
-      | fzf $__SHIRUBE_FZF_OPTS --no-preview \
+      | fzf $__SHIRUBE_FZF_OPTS \
             --prompt='history> ' \
-            --border-label=' history ' \
+            --preview-window=hidden \
             --query="$LBUFFER")"
     if [[ -z "$selected" ]]; then
       zle redisplay
@@ -293,9 +289,9 @@ elif [[ -n "$BASH_VERSION" ]]; then
     local selected
     selected="$(builtin fc -lnr -2147483648 \
       | awk '!seen[$0]++' \
-      | fzf $__SHIRUBE_FZF_OPTS --no-preview \
+      | fzf $__SHIRUBE_FZF_OPTS \
             --prompt='history> ' \
-            --border-label=' history ' \
+            --preview-window=hidden \
             --query="$READLINE_LINE")"
     if [[ -n "$selected" ]]; then
       READLINE_LINE="$selected"
