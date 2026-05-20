@@ -32,7 +32,7 @@ __shirube_select_worktree() {
     echo "shirube: git is not installed" >&2
     return 1
   fi
-  if ! git wt --help &>/dev/null 2>&1; then
+  if ! command -v git-wt &>/dev/null; then
     echo "shirube: git-wt is not installed" >&2
     return 1
   fi
