@@ -14,7 +14,7 @@ fi
 # Common fzf options
 # ==========================================================
 
-__SHIRUBE_FZF_OPTS="--reverse --border --height=80% --preview-window=right,50%"
+__SHIRUBE_FZF_OPTS="--reverse --border=rounded --height=80% --preview-window=right,50%,border-left"
 
 # ==========================================================
 # Common selection functions
@@ -30,7 +30,9 @@ __shirube_select_ghq() {
 
   ghq list --full-path | fzf $__SHIRUBE_FZF_OPTS \
     --prompt='ghq> ' \
-    --preview 'ls -p {}'
+    --border-label=' ghq ' \
+    --preview 'ls -p {}' \
+    --preview-label=' files '
 }
 
 # Select a git worktree via fzf (supports ctrl-n/ctrl-r).
@@ -49,8 +51,10 @@ __shirube_select_worktree() {
   result="$(git worktree list 2>/dev/null \
     | fzf $__SHIRUBE_FZF_OPTS \
           --prompt='worktree> ' \
+          --border-label=' worktree ' \
           --header='ctrl-n: new / ctrl-r: delete' \
           --preview 'git -C {1} log --oneline -20' \
+          --preview-label=' git log ' \
           --print-query --expect=ctrl-n,ctrl-r \
           --bind ctrl-r:accept)"
   [[ -z "$result" ]] && return 1
@@ -85,8 +89,10 @@ __shirube_select_branch() {
     | grep -v 'HEAD' \
     | fzf $__SHIRUBE_FZF_OPTS \
           --prompt='branch> ' \
+          --border-label=' branch ' \
           --header='ctrl-n: new / ctrl-r: delete' \
           --preview 'git log --oneline --graph -20 $(echo {} | sed "s/^[* ]*//" | sed "s|^remotes/[^/]*/||")' \
+          --preview-label=' git log ' \
           --print-query --expect=ctrl-n,ctrl-r \
           --bind ctrl-r:accept)"
   [[ -z "$result" ]] && return 1
@@ -119,7 +125,9 @@ __shirube_select_pr() {
   local line
   line="$(gh pr list 2>/dev/null | fzf $__SHIRUBE_FZF_OPTS \
     --prompt='pr> ' \
-    --preview 'gh pr view {1}')"
+    --border-label=' pull request ' \
+    --preview 'gh pr view {1}' \
+    --preview-label=' details ')"
   [[ -n "$line" ]] && echo "$line" | awk '{print $1}'
 }
 
@@ -213,7 +221,8 @@ if [[ -n "$ZSH_VERSION" ]]; then
       | awk '{ cmd=$0; sub(/^[ ]*[0-9]+\*?[ ]+/, "", cmd); if (!seen[cmd]++) print cmd }' \
       | fzf $__SHIRUBE_FZF_OPTS \
             --prompt='history> ' \
-            --preview-window=hidden \
+            --border-label=' history ' \
+            --no-preview \
             --query="$LBUFFER")"
     if [[ -z "$selected" ]]; then
       zle redisplay
@@ -291,7 +300,8 @@ elif [[ -n "$BASH_VERSION" ]]; then
       | awk '!seen[$0]++' \
       | fzf $__SHIRUBE_FZF_OPTS \
             --prompt='history> ' \
-            --preview-window=hidden \
+            --border-label=' history ' \
+            --no-preview \
             --query="$READLINE_LINE")"
     if [[ -n "$selected" ]]; then
       READLINE_LINE="$selected"
