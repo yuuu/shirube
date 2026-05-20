@@ -99,18 +99,32 @@ __shirube_select_branch() {
   fi
 }
 
-# Select a GitHub PR via fzf.
-# Prints the selected PR number to stdout.
+# Select a GitHub PR via fzf (supports ctrl-o to open in browser).
+# Output: line 1 = "select" or "open", line 2 = PR number.
 __shirube_select_pr() {
   if ! command -v gh &>/dev/null; then
     echo "shirube: gh (GitHub CLI) is not installed" >&2
     return 1
   fi
 
-  local line
-  line="$(gh pr list 2>/dev/null | fzf --reverse --prompt='pr> ' \
-    --preview 'gh pr view {1}')"
-  [[ -n "$line" ]] && echo "$line" | awk '{print $1}'
+  local result key line pr_number
+  result="$(gh pr list 2>/dev/null \
+    | fzf --reverse --prompt='pr> ' \
+          --header='ctrl-o: open in browser' \
+          --preview 'gh pr view {1}' \
+          --print-query --expect=ctrl-o)"
+  [[ -z "$result" ]] && return 1
+
+  key="$(sed -n '2p' <<< "$result")"
+  line="$(sed -n '3p' <<< "$result")"
+  [[ -z "$line" ]] && return 1
+
+  pr_number="$(echo "$line" | awk '{print $1}')"
+  if [[ "$key" == "ctrl-o" ]]; then
+    printf 'open\n%s' "$pr_number"
+  else
+    printf 'select\n%s' "$pr_number"
+  fi
 }
 
 # ==========================================================
@@ -183,14 +197,20 @@ if [[ -n "$ZSH_VERSION" ]]; then
 
   shirube-pr-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
-    local pr_number
-    pr_number="$(__shirube_select_pr)"
-    if [[ -z "$pr_number" ]]; then
+    local result action pr_number
+    result="$(__shirube_select_pr)"
+    if [[ -z "$result" ]]; then
       zle redisplay
       return 0
     fi
+    action="$(sed -n '1p' <<< "$result")"
+    pr_number="$(sed -n '2p' <<< "$result")"
     zle push-line
-    BUFFER="gh pr checkout ${pr_number}"
+    if [[ "$action" == "open" ]]; then
+      BUFFER="gh pr view --web ${pr_number}"
+    else
+      BUFFER="gh pr checkout ${pr_number}"
+    fi
     zle accept-line
   }
   zle -N shirube-pr-widget
@@ -263,10 +283,16 @@ elif [[ -n "$BASH_VERSION" ]]; then
   }
 
   __shirube_pr() {
-    local pr_number
-    pr_number="$(__shirube_select_pr)"
-    if [[ -n "$pr_number" ]]; then
-      gh pr checkout "$pr_number"
+    local result action pr_number
+    result="$(__shirube_select_pr)"
+    if [[ -n "$result" ]]; then
+      action="$(sed -n '1p' <<< "$result")"
+      pr_number="$(sed -n '2p' <<< "$result")"
+      if [[ "$action" == "open" ]]; then
+        gh pr view --web "$pr_number"
+      else
+        gh pr checkout "$pr_number"
+      fi
     fi
     READLINE_LINE=""
     READLINE_POINT=0
