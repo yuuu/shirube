@@ -25,7 +25,7 @@ __shirube_select_ghq() {
   ghq list --full-path | fzf --reverse --prompt='ghq> '
 }
 
-# Select a git worktree via fzf (supports ctrl-n/ctrl-d).
+# Select a git worktree via fzf (supports ctrl-n/ctrl-r).
 # Output: line 1 = "select", "new", or "delete", line 2 = branch name.
 __shirube_select_worktree() {
   if ! command -v git &>/dev/null; then
@@ -40,9 +40,9 @@ __shirube_select_worktree() {
   local result query key selection
   result="$(git worktree list 2>/dev/null \
     | fzf --reverse --prompt='worktree> ' \
-          --header='ctrl-n: new / ctrl-d: delete' \
-          --print-query --expect=ctrl-n,ctrl-d \
-          --bind 'ctrl-d:accept')"
+          --header='ctrl-n: new / ctrl-r: delete' \
+          --print-query --expect=ctrl-n,ctrl-r \
+          --bind ctrl-r:accept)"
   [[ -z "$result" ]] && return 1
 
   query="$(sed -n '1p' <<< "$result")"
@@ -51,7 +51,7 @@ __shirube_select_worktree() {
 
   if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
     printf 'new\n%s' "$query"
-  elif [[ "$key" == "ctrl-d" && -n "$selection" ]]; then
+  elif [[ "$key" == "ctrl-r" && -n "$selection" ]]; then
     local branch
     branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
     [[ -n "$branch" ]] && printf 'delete\n%s' "$branch"
@@ -62,7 +62,7 @@ __shirube_select_worktree() {
   fi
 }
 
-# Select a git branch via fzf (supports ctrl-n/ctrl-d).
+# Select a git branch via fzf (supports ctrl-n/ctrl-r).
 # Output: line 1 = "select", "new", or "delete", line 2 = branch name.
 __shirube_select_branch() {
   if ! command -v git &>/dev/null; then
@@ -74,9 +74,9 @@ __shirube_select_branch() {
   result="$(git branch --all 2>/dev/null \
     | grep -v 'HEAD' \
     | fzf --reverse --prompt='branch> ' \
-          --header='ctrl-n: new / ctrl-d: delete' \
-          --print-query --expect=ctrl-n,ctrl-d \
-          --bind 'ctrl-d:accept')"
+          --header='ctrl-n: new / ctrl-r: delete' \
+          --print-query --expect=ctrl-n,ctrl-r \
+          --bind ctrl-r:accept)"
   [[ -z "$result" ]] && return 1
 
   query="$(sed -n '1p' <<< "$result")"
@@ -85,7 +85,7 @@ __shirube_select_branch() {
 
   if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
     printf 'new\n%s' "$query"
-  elif [[ "$key" == "ctrl-d" && -n "$selection" ]]; then
+  elif [[ "$key" == "ctrl-r" && -n "$selection" ]]; then
     local branch
     branch="$(echo "$selection" | sed 's/^[* ]*//' | sed 's|^remotes/[^/]*/||')"
     [[ -n "$branch" ]] && printf 'delete\n%s' "$branch"
