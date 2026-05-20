@@ -22,7 +22,8 @@ __shirube_select_ghq() {
     return 1
   fi
 
-  ghq list --full-path | fzf --reverse --prompt='ghq> '
+  ghq list --full-path | fzf --reverse --prompt='ghq> ' \
+    --preview 'ls -p {}'
 }
 
 # Select a git worktree via fzf (supports ctrl-n/ctrl-r).
@@ -41,6 +42,7 @@ __shirube_select_worktree() {
   result="$(git worktree list 2>/dev/null \
     | fzf --reverse --prompt='worktree> ' \
           --header='ctrl-n: new / ctrl-r: delete' \
+          --preview 'git -C {1} log --oneline -20' \
           --print-query --expect=ctrl-n,ctrl-r \
           --bind ctrl-r:accept)"
   [[ -z "$result" ]] && return 1
@@ -75,6 +77,7 @@ __shirube_select_branch() {
     | grep -v 'HEAD' \
     | fzf --reverse --prompt='branch> ' \
           --header='ctrl-n: new / ctrl-r: delete' \
+          --preview 'git log --oneline --graph -20 $(echo {} | sed "s/^[* ]*//" | sed "s|^remotes/[^/]*/||")' \
           --print-query --expect=ctrl-n,ctrl-r \
           --bind ctrl-r:accept)"
   [[ -z "$result" ]] && return 1
@@ -105,7 +108,8 @@ __shirube_select_pr() {
   fi
 
   local line
-  line="$(gh pr list 2>/dev/null | fzf --reverse --prompt='pr> ')"
+  line="$(gh pr list 2>/dev/null | fzf --reverse --prompt='pr> ' \
+    --preview 'gh pr view {1}')"
   [[ -n "$line" ]] && echo "$line" | awk '{print $1}'
 }
 
