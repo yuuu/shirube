@@ -127,6 +127,23 @@ __shirube_select_pr() {
   fi
 }
 
+# Select a GitHub Issue via fzf.
+# Prints the selected issue number to stdout.
+__shirube_select_issue() {
+  if ! command -v gh &>/dev/null; then
+    echo "shirube: gh (GitHub CLI) is not installed" >&2
+    return 1
+  fi
+
+  local line
+  line="$(gh issue list 2>/dev/null \
+    | fzf --reverse --prompt='issue> ' \
+          --preview 'gh issue view {1}')"
+  [[ -z "$line" ]] && return 1
+
+  echo "$line" | awk '{print $1}'
+}
+
 # ==========================================================
 # Shell-specific integration
 # ==========================================================
@@ -216,6 +233,21 @@ if [[ -n "$ZSH_VERSION" ]]; then
   zle -N shirube-pr-widget
   bindkey '^xp' shirube-pr-widget
 
+  shirube-issue-widget() {
+    setopt localoptions pipefail no_aliases 2>/dev/null
+    local issue_number
+    issue_number="$(__shirube_select_issue)"
+    if [[ -z "$issue_number" ]]; then
+      zle redisplay
+      return 0
+    fi
+    zle push-line
+    BUFFER="gh issue view --web ${issue_number}"
+    zle accept-line
+  }
+  zle -N shirube-issue-widget
+  bindkey '^xi' shirube-issue-widget
+
   shirube-history-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
     local selected
@@ -298,6 +330,16 @@ elif [[ -n "$BASH_VERSION" ]]; then
     READLINE_POINT=0
   }
 
+  __shirube_issue() {
+    local issue_number
+    issue_number="$(__shirube_select_issue)"
+    if [[ -n "$issue_number" ]]; then
+      gh issue view --web "$issue_number"
+    fi
+    READLINE_LINE=""
+    READLINE_POINT=0
+  }
+
   __shirube_history() {
     local selected
     selected="$(builtin fc -lnr -2147483648 \
@@ -316,5 +358,6 @@ elif [[ -n "$BASH_VERSION" ]]; then
   bind -x '"\C-xw": __shirube_worktree'
   bind -x '"\C-xb": __shirube_branch'
   bind -x '"\C-xp": __shirube_pr'
+  bind -x '"\C-xi": __shirube_issue'
   bind -x '"\C-r": __shirube_history'
 fi
