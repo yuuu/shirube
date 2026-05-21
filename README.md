@@ -76,6 +76,18 @@ Linting uses [shellcheck](https://github.com/koalaman/shellcheck):
 shellcheck shirube.sh shirube.bash shirube.zsh shirube.plugin.bash shirube.plugin.zsh
 ```
 
+### Formatting
+
+Formatting uses [shfmt](https://github.com/mvdan/sh). `shirube.sh` is excluded because it contains zsh-specific syntax that shfmt cannot parse.
+
+```sh
+# Check
+shfmt -d shirube.bash shirube.zsh shirube.plugin.bash shirube.plugin.zsh
+
+# Apply
+shfmt -w shirube.bash shirube.zsh shirube.plugin.bash shirube.plugin.zsh
+```
+
 ## License
 
 MIT

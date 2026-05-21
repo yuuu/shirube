@@ -7,6 +7,16 @@ on:
     branches: [main]
 
 jobs:
+  shfmt:
+    name: shfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mfinelli/setup-shfmt@v3
+      - name: Check formatting
+        # shirube.sh contains zsh-specific syntax (${(q)}) that shfmt cannot parse
+        run: shfmt -d shirube.bash shirube.zsh shirube.plugin.bash shirube.plugin.zsh
+
   shellcheck:
     name: ShellCheck
     runs-on: ubuntu-latest
