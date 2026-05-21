@@ -57,6 +57,25 @@ source /path/to/shirube/shirube.zsh
 source /path/to/shirube/shirube.bash
 ```
 
+## Development
+
+### Running tests
+
+Tests use [bats-core](https://github.com/bats-core/bats-core). Fetch submodules on first use:
+
+```sh
+git submodule update --init --recursive
+./test/bats/bin/bats test/
+```
+
+### Linting
+
+Linting uses [shellcheck](https://github.com/koalaman/shellcheck):
+
+```sh
+shellcheck shirube.sh shirube.bash shirube.zsh shirube.plugin.bash shirube.plugin.zsh
+```
+
 ## License
 
 MIT
