@@ -4,8 +4,8 @@
 
 # bash-it metadata
 if type cite &>/dev/null; then
-  cite about-plugin
-  about-plugin 'fzf-based fuzzy finder shortcuts (ghq, worktree, branch, pr, history)'
+	cite about-plugin
+	about-plugin 'fzf-based fuzzy finder shortcuts (ghq, worktree, branch, pr, history)'
 fi
 
 # Source the main implementation

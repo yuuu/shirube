@@ -1,0 +1,8 @@
+shell=bash
+# SC1090: source path is dynamic (intentional)
+# SC2016: expressions in single quotes (intentional in fzf --preview arguments)
+# SC2034: BUFFER/RBUFFER/LBUFFER appear unused (they are zsh zle variables)
+# SC2039,SC3044,SC3054: zsh-specific constructs (setopt, local -a, etc.)
+# SC2296: ${(q)var} zsh parameter flag expansion (intentional)
+# SC2317: unreachable code after `return` (intentional fallback for non-sourced execution)
+disable=SC1090,SC2016,SC2034,SC2039,SC2296,SC2317,SC3044,SC3054
