@@ -12,9 +12,10 @@ setup() {
 }
 
 @test "__shirube_select_issue: exits 1 with error when gh is not installed" {
+  # gh is pre-installed at /usr/bin/gh on GitHub Actions runners, so restrict PATH.
   set_fzf_output ""
 
-  run __shirube_select_issue
+  run_minimal_path __shirube_select_issue
   assert_failure
   assert_output --partial "gh (GitHub CLI) is not installed"
 }
