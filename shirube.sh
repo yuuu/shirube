@@ -292,12 +292,12 @@ elif [[ -n "$BASH_VERSION" ]]; then
       branch="$(sed -n '2p' <<< "$result")"
       path="$(sed -n '3p' <<< "$result")"
       if [[ "$action" == "select" ]]; then
-        builtin cd -- "$path"
+        builtin cd -- "$path" || return
       elif [[ "$action" == "new" ]]; then
         local main_root new_path
         main_root="$(git worktree list | awk 'NR==1 {print $1}')"
         new_path="${main_root}/.worktrees/${branch}"
-        git worktree add "$new_path" -b "$branch" && builtin cd -- "$new_path"
+        git worktree add "$new_path" -b "$branch" && { builtin cd -- "$new_path" || return; }
       elif [[ "$action" == "delete" ]]; then
         git worktree remove "$path" && git branch -d "$branch"
       fi
