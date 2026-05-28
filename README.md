@@ -19,14 +19,7 @@ Inspired by [anyframe](https://github.com/mollifier/anyframe).
 - **Required**: [fzf](https://github.com/junegunn/fzf)
 - **Optional**: Each feature requires its corresponding tool
   - `ghq` - Repository management (`Ctrl+x g`)
-  - `git` - Branch operations (`Ctrl+x b`)
-  - [git-wt](https://github.com/k1LoW/git-wt) - Worktree operations (`Ctrl+x w`). Shell integration is required:
-    ```zsh
-    # zsh
-    eval "$(git wt --init zsh)"
-    # bash
-    eval "$(git wt --init bash)"
-    ```
+  - `git` - Branch and worktree operations (`Ctrl+x b`, `Ctrl+x w`)
   - `gh` - GitHub CLI (`Ctrl+x p`, `Ctrl+x i`)
 
 ## Installation
