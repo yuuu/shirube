@@ -33,10 +33,6 @@ __shirube_select_worktree() {
     echo "shirube: git is not installed" >&2
     return 1
   fi
-  if ! command -v git-wt &>/dev/null; then
-    echo "shirube: git-wt is not installed" >&2
-    return 1
-  fi
 
   local result query key selection
   result="$(git worktree list 2>/dev/null \
@@ -54,13 +50,15 @@ __shirube_select_worktree() {
   if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
     printf 'new\n%s' "$query"
   elif [[ "$key" == "ctrl-r" && -n "$selection" ]]; then
-    local branch
+    local branch path
+    path="$(awk '{print $1}' <<< "$selection")"
     branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
-    [[ -n "$branch" ]] && printf 'delete\n%s' "$branch"
+    [[ -n "$branch" ]] && printf 'delete\n%s\n%s' "$branch" "$path"
   elif [[ -n "$selection" ]]; then
-    local branch
+    local branch path
+    path="$(awk '{print $1}' <<< "$selection")"
     branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
-    [[ -n "$branch" ]] && printf 'select\n%s' "$branch"
+    [[ -n "$branch" ]] && printf 'select\n%s\n%s' "$branch" "$path"
   fi
 }
 
@@ -170,7 +168,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
 
   shirube-worktree-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
-    local result action branch
+    local result action branch path
     result="$(__shirube_select_worktree)"
     if [[ -z "$result" ]]; then
       zle redisplay
@@ -178,11 +176,17 @@ if [[ -n "$ZSH_VERSION" ]]; then
     fi
     action="$(sed -n '1p' <<< "$result")"
     branch="$(sed -n '2p' <<< "$result")"
+    path="$(sed -n '3p' <<< "$result")"
     zle push-line
-    if [[ "$action" == "delete" ]]; then
-      BUFFER="git wt -d ${(q)branch}"
-    else
-      BUFFER="git wt ${(q)branch}"
+    if [[ "$action" == "select" ]]; then
+      BUFFER="builtin cd -- ${(q)path}"
+    elif [[ "$action" == "new" ]]; then
+      local main_root new_path
+      main_root="$(command git worktree list | awk 'NR==1 {print $1}')"
+      new_path="${main_root}/.worktrees/${branch}"
+      BUFFER="git worktree add ${(q)new_path} -b ${(q)branch} && builtin cd -- ${(q)new_path}"
+    elif [[ "$action" == "delete" ]]; then
+      BUFFER="git worktree remove ${(q)path} && git branch -d ${(q)branch}"
     fi
     zle accept-line
   }
@@ -281,15 +285,21 @@ elif [[ -n "$BASH_VERSION" ]]; then
   }
 
   __shirube_worktree() {
-    local result action branch
+    local result action branch path
     result="$(__shirube_select_worktree)"
     if [[ -n "$result" ]]; then
       action="$(sed -n '1p' <<< "$result")"
       branch="$(sed -n '2p' <<< "$result")"
-      if [[ "$action" == "delete" ]]; then
-        git wt -d "$branch"
-      else
-        git wt "$branch"
+      path="$(sed -n '3p' <<< "$result")"
+      if [[ "$action" == "select" ]]; then
+        builtin cd -- "$path"
+      elif [[ "$action" == "new" ]]; then
+        local main_root new_path
+        main_root="$(git worktree list | awk 'NR==1 {print $1}')"
+        new_path="${main_root}/.worktrees/${branch}"
+        git worktree add "$new_path" -b "$branch" && builtin cd -- "$new_path"
+      elif [[ "$action" == "delete" ]]; then
+        git worktree remove "$path" && git branch -d "$branch"
       fi
     fi
     READLINE_LINE=""
