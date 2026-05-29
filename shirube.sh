@@ -142,6 +142,23 @@ __shirube_select_issue() {
   echo "$line" | awk '{print $1}'
 }
 
+# Remove a git worktree, falling back to rm -rf + prune for worktrees containing submodules.
+__shirube_worktree_remove() {
+  local wt_path="$1" branch="$2"
+  local err rc
+  err="$(git worktree remove "$wt_path" 2>&1)"
+  rc=$?
+  if [[ $rc -ne 0 ]]; then
+    if [[ "$err" == *"submodule"* ]]; then
+      rm -rf "$wt_path" && git worktree prune
+    else
+      echo "$err" >&2
+      return 1
+    fi
+  fi
+  git branch -d "$branch"
+}
+
 # Copy files listed in .worktreeinclude from main_root to new_path.
 # Lines starting with # and empty lines are skipped.
 # Trailing slashes (directory markers) are stripped before matching.
@@ -205,7 +222,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
       new_path="${main_root}/.worktrees/${branch}"
       BUFFER="git worktree add ${(q)new_path} -b ${(q)branch} && builtin cd -- ${(q)new_path} && __shirube_worktree_copy_includes ${(q)main_root} ${(q)new_path}"
     elif [[ "$action" == "delete" ]]; then
-      BUFFER="git worktree remove ${(q)wt_path} && git branch -d ${(q)branch}"
+      BUFFER="__shirube_worktree_remove ${(q)wt_path} ${(q)branch}"
     fi
     zle accept-line
   }
@@ -318,7 +335,7 @@ elif [[ -n "$BASH_VERSION" ]]; then
         new_path="${main_root}/.worktrees/${branch}"
         git worktree add "$new_path" -b "$branch" && { builtin cd -- "$new_path" || return; } && __shirube_worktree_copy_includes "$main_root" "$new_path"
       elif [[ "$action" == "delete" ]]; then
-        git worktree remove "$path" && git branch -d "$branch"
+        __shirube_worktree_remove "$path" "$branch"
       fi
     fi
     READLINE_LINE=""
