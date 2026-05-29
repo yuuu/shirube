@@ -142,6 +142,25 @@ __shirube_select_issue() {
   echo "$line" | awk '{print $1}'
 }
 
+# Copy files listed in .worktreeinclude from main_root to new_path.
+# Lines starting with # and empty lines are skipped.
+# Trailing slashes (directory markers) are stripped before matching.
+__shirube_worktree_copy_includes() {
+  local main_root="$1" new_path="$2"
+  local include_file="${main_root}/.worktreeinclude"
+  [[ -f "$include_file" ]] || return 0
+  local pattern
+  while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+    [[ -z "$pattern" || "$pattern" == "#"* ]] && continue
+    local stripped="${pattern%/}"
+    local src="${main_root}/${stripped}"
+    [[ -e "$src" ]] || continue
+    local dst="${new_path}/${stripped}"
+    mkdir -p "$(dirname "$dst")"
+    cp -r "$src" "$dst"
+  done < "$include_file"
+}
+
 # ==========================================================
 # Shell-specific integration
 # ==========================================================
@@ -184,7 +203,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
       local main_root new_path
       main_root="$(command git worktree list | awk 'NR==1 {print $1}')"
       new_path="${main_root}/.worktrees/${branch}"
-      BUFFER="git worktree add ${(q)new_path} -b ${(q)branch} && builtin cd -- ${(q)new_path}"
+      BUFFER="git worktree add ${(q)new_path} -b ${(q)branch} && builtin cd -- ${(q)new_path} && __shirube_worktree_copy_includes ${(q)main_root} ${(q)new_path}"
     elif [[ "$action" == "delete" ]]; then
       BUFFER="git worktree remove ${(q)wt_path} && git branch -d ${(q)branch}"
     fi
@@ -297,7 +316,7 @@ elif [[ -n "$BASH_VERSION" ]]; then
         local main_root new_path
         main_root="$(git worktree list | awk 'NR==1 {print $1}')"
         new_path="${main_root}/.worktrees/${branch}"
-        git worktree add "$new_path" -b "$branch" && { builtin cd -- "$new_path" || return; }
+        git worktree add "$new_path" -b "$branch" && { builtin cd -- "$new_path" || return; } && __shirube_worktree_copy_includes "$main_root" "$new_path"
       elif [[ "$action" == "delete" ]]; then
         git worktree remove "$path" && git branch -d "$branch"
       fi
