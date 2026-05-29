@@ -35,7 +35,7 @@ __shirube_select_worktree() {
   fi
 
   local result query key selection
-  result="$(git worktree list 2>/dev/null \
+  result="$(command git worktree list 2>/dev/null \
     | fzf --reverse --prompt='worktree> ' \
           --header='ctrl-n: new / ctrl-r: delete' \
           --preview 'git -C {1} log --oneline -20' \
@@ -50,15 +50,15 @@ __shirube_select_worktree() {
   if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
     printf 'new\n%s' "$query"
   elif [[ "$key" == "ctrl-r" && -n "$selection" ]]; then
-    local branch path
-    path="$(awk '{print $1}' <<< "$selection")"
+    local branch wt_path
+    wt_path="$(awk '{print $1}' <<< "$selection")"
     branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
-    [[ -n "$branch" ]] && printf 'delete\n%s\n%s' "$branch" "$path"
+    [[ -n "$branch" ]] && printf 'delete\n%s\n%s' "$branch" "$wt_path"
   elif [[ -n "$selection" ]]; then
-    local branch path
-    path="$(awk '{print $1}' <<< "$selection")"
+    local branch wt_path
+    wt_path="$(awk '{print $1}' <<< "$selection")"
     branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
-    [[ -n "$branch" ]] && printf 'select\n%s\n%s' "$branch" "$path"
+    [[ -n "$branch" ]] && printf 'select\n%s\n%s' "$branch" "$wt_path"
   fi
 }
 
@@ -168,7 +168,7 @@ if [[ -n "$ZSH_VERSION" ]]; then
 
   shirube-worktree-widget() {
     setopt localoptions pipefail no_aliases 2>/dev/null
-    local result action branch path
+    local result action branch wt_path
     result="$(__shirube_select_worktree)"
     if [[ -z "$result" ]]; then
       zle redisplay
@@ -176,17 +176,17 @@ if [[ -n "$ZSH_VERSION" ]]; then
     fi
     action="$(sed -n '1p' <<< "$result")"
     branch="$(sed -n '2p' <<< "$result")"
-    path="$(sed -n '3p' <<< "$result")"
+    wt_path="$(sed -n '3p' <<< "$result")"
     zle push-line
     if [[ "$action" == "select" ]]; then
-      BUFFER="builtin cd -- ${(q)path}"
+      BUFFER="builtin cd -- ${(q)wt_path}"
     elif [[ "$action" == "new" ]]; then
       local main_root new_path
       main_root="$(command git worktree list | awk 'NR==1 {print $1}')"
       new_path="${main_root}/.worktrees/${branch}"
       BUFFER="git worktree add ${(q)new_path} -b ${(q)branch} && builtin cd -- ${(q)new_path}"
     elif [[ "$action" == "delete" ]]; then
-      BUFFER="git worktree remove ${(q)path} && git branch -d ${(q)branch}"
+      BUFFER="git worktree remove ${(q)wt_path} && git branch -d ${(q)branch}"
     fi
     zle accept-line
   }
