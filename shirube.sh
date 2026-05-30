@@ -316,6 +316,7 @@ elif [[ -n "$BASH_VERSION" ]]; then
     if [[ -n "$dir" ]]; then
       builtin cd -- "$dir" || return 1
     fi
+    printf '\n'
     READLINE_LINE=""
     READLINE_POINT=0
   }
