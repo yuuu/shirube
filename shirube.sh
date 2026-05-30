@@ -314,7 +314,7 @@ elif [[ -n "$BASH_VERSION" ]]; then
     local dir
     dir="$(__shirube_select_ghq)"
     if [[ -n "$dir" ]]; then
-      builtin cd -- "$dir"
+      builtin cd -- "$dir" || return
     fi
   }
 
