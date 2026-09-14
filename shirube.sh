@@ -310,12 +310,16 @@ elif [[ -n "$BASH_VERSION" ]]; then
   # bash: bind -x (bash 4+ required)
   # --------------------------------------------------------
 
+  # Invoked by typing the command below into the line and pressing Enter for
+  # real (see the \C-xg binding at the bottom), so the cd happens as a normal
+  # top-level command and the next prompt is regenerated (git/dir-aware
+  # prompts like starship pick up the new $PWD immediately). Running it via
+  # `bind -x` instead only redraws the *current* prompt line in place, so the
+  # cwd change wouldn't be reflected until another Enter was pressed.
   __shirube_ghq() {
     local dir
     dir="$(__shirube_select_ghq)"
-    if [[ -n "$dir" ]]; then
-      builtin cd -- "$dir" || return
-    fi
+    [[ -n "$dir" ]] && builtin cd -- "$dir"
   }
 
   __shirube_worktree() {
@@ -398,7 +402,10 @@ elif [[ -n "$BASH_VERSION" ]]; then
     fi
   }
 
-  bind '"\C-xg": "\C-a\C-k __shirube_ghq\C-m"'
+  # \C-u (unix-line-discard) clears whatever was on the line first, unlike
+  # \C-a\C-k which relies on emacs-only bindings; it also works under
+  # `set -o vi`. \C-m (Enter) then submits the typed command for real.
+  bind '"\C-xg": "\C-u__shirube_ghq\C-m"'
   bind -x '"\C-xw": __shirube_worktree'
   bind -x '"\C-xb": __shirube_branch'
   bind -x '"\C-xp": __shirube_pr'
