@@ -310,12 +310,14 @@ elif [[ -n "$BASH_VERSION" ]]; then
   # bash: bind -x (bash 4+ required)
   # --------------------------------------------------------
 
-  # Invoked by typing the command below into the line and pressing Enter for
-  # real (see the \C-xg binding at the bottom), so the cd happens as a normal
+  # __shirube_ghq/worktree/branch/pr below are invoked by typing the
+  # function name into the line and pressing Enter for real (see the
+  # bindings at the bottom), so the cd/checkout happens as a normal
   # top-level command and the next prompt is regenerated (git/dir-aware
-  # prompts like starship pick up the new $PWD immediately). Running it via
-  # `bind -x` instead only redraws the *current* prompt line in place, so the
-  # cwd change wouldn't be reflected until another Enter was pressed.
+  # prompts like starship pick up the new $PWD/branch immediately).
+  # Running them via `bind -x` instead only redraws the *current* prompt
+  # line in place, so the change wouldn't be reflected until another
+  # Enter was pressed.
   __shirube_ghq() {
     local dir
     dir="$(__shirube_select_ghq)"
@@ -340,8 +342,6 @@ elif [[ -n "$BASH_VERSION" ]]; then
         __shirube_worktree_remove "$path" "$branch"
       fi
     fi
-    READLINE_LINE=""
-    READLINE_POINT=0
   }
 
   __shirube_branch() {
@@ -358,8 +358,6 @@ elif [[ -n "$BASH_VERSION" ]]; then
         git checkout "$branch"
       fi
     fi
-    READLINE_LINE=""
-    READLINE_POINT=0
   }
 
   __shirube_pr() {
@@ -374,8 +372,6 @@ elif [[ -n "$BASH_VERSION" ]]; then
         gh pr checkout "$pr_number"
       fi
     fi
-    READLINE_LINE=""
-    READLINE_POINT=0
   }
 
   __shirube_issue() {
@@ -406,9 +402,12 @@ elif [[ -n "$BASH_VERSION" ]]; then
   # \C-a\C-k which relies on emacs-only bindings; it also works under
   # `set -o vi`. \C-m (Enter) then submits the typed command for real.
   bind '"\C-xg": "\C-u__shirube_ghq\C-m"'
-  bind -x '"\C-xw": __shirube_worktree'
-  bind -x '"\C-xb": __shirube_branch'
-  bind -x '"\C-xp": __shirube_pr'
+  bind '"\C-xw": "\C-u__shirube_worktree\C-m"'
+  bind '"\C-xb": "\C-u__shirube_branch\C-m"'
+  bind '"\C-xp": "\C-u__shirube_pr\C-m"'
+  # \C-xi/\C-r don't change anything the prompt reflects (issue view just
+  # opens a browser; history search only fills in the line for the user to
+  # review/edit), so they stay on `bind -x` rather than auto-submitting.
   bind -x '"\C-xi": __shirube_issue'
   bind -x '"\C-r": __shirube_history'
 fi
