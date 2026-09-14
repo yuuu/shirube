@@ -316,6 +316,8 @@ elif [[ -n "$BASH_VERSION" ]]; then
     if [[ -n "$dir" ]]; then
       builtin cd -- "$dir" || return
     fi
+    READLINE_LINE=""
+    READLINE_POINT=0
   }
 
   __shirube_worktree() {
@@ -398,7 +400,7 @@ elif [[ -n "$BASH_VERSION" ]]; then
     fi
   }
 
-  bind '"\C-xg": "\C-a\C-k __shirube_ghq\C-m"'
+  bind -x '"\C-xg": __shirube_ghq'
   bind -x '"\C-xw": __shirube_worktree'
   bind -x '"\C-xb": __shirube_branch'
   bind -x '"\C-xp": __shirube_pr'
