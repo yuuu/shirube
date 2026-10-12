@@ -12,6 +12,8 @@ Press shortcut keys in your shell to search and select:
 | `Ctrl+x i` | Select an issue from gh issue list and open it in browser |
 | `Ctrl+r` | Select a command from history and execute it |
 
+If you pause after pressing `Ctrl+x`, a hint listing the available keys is shown (below the command line in zsh, in place of it in bash). Press one of the keys to continue, or `Esc` to cancel. Other `Ctrl+x` bindings (e.g. `Ctrl+x Ctrl+e`) keep working as before.
+
 Inspired by [anyframe](https://github.com/mollifier/anyframe).
 
 ## Requirements
