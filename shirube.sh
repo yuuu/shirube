@@ -182,6 +182,9 @@ __shirube_worktree_copy_includes() {
 # Shell-specific integration
 # ==========================================================
 
+# Hint shown when Ctrl+x is pressed and the next key has not been typed yet.
+__shirube_prefix_hint='C-x  g:ghq  w:worktree  b:branch  p:pr  i:issue  (Esc: cancel)'
+
 if [[ -n "$ZSH_VERSION" ]]; then
   # --------------------------------------------------------
   # zsh: widgets + bindkey
@@ -305,6 +308,28 @@ if [[ -n "$ZSH_VERSION" ]]; then
   zle -N shirube-history-widget
   bindkey '^r' shirube-history-widget
 
+  # Ctrl+x alone: when the next key does not follow within KEYTIMEOUT, show a
+  # hint below the command line, then run whatever Ctrl+x <key> is bound to.
+  shirube-prefix-widget() {
+    local key seq binding
+    zle -R "$__shirube_prefix_hint"
+    read -r -k 1 key || return 0
+    zle -R ""
+    [[ "$key" == $'\e' ]] && return 0
+    case "$key" in
+      '^') seq='\^' ;;
+      "\\") seq="\\\\" ;;
+      *) seq="${(V)key}" ;;
+    esac
+    binding="$(bindkey -M "$KEYMAP" -- "^X${seq}")"
+    binding="${binding##* }"
+    if [[ -n "$binding" && "$binding" != '"'* && "$binding" != undefined-key ]]; then
+      zle "$binding"
+    fi
+  }
+  zle -N shirube-prefix-widget
+  bindkey '^x' shirube-prefix-widget
+
 elif [[ -n "$BASH_VERSION" ]]; then
   # --------------------------------------------------------
   # bash: bind -x (bash 4+ required)
@@ -412,4 +437,64 @@ elif [[ -n "$BASH_VERSION" ]]; then
   # review/edit), so they stay on `bind -x` rather than auto-submitting.
   bind -x '"\C-xi": __shirube_issue'
   bind -x '"\C-r": __shirube_history'
+
+  # Look up what "\C-x<key>" is bound to and print it as a readline binding:
+  # "-x <command>" for bind -x, otherwise a function name or quoted macro.
+  __shirube_prefix_lookup() {
+    local key="$1" seq n line opt prefix
+    local ctrl='abcdefghijklmnopqrstuvwxyz'
+    printf -v n '%d' "'$key"
+    if ((n >= 1 && n <= 26)); then
+      seq="\\C-${ctrl:n-1:1}"
+    elif ((n == 127)); then
+      seq='\C-?'
+    elif [[ "$key" == '"' || "$key" == "\\" ]]; then
+      seq="\\$key"
+    else
+      seq="$key"
+    fi
+    prefix="\"\\C-x${seq}\""
+    for opt in -X -s -p; do
+      while IFS= read -r line; do
+        if [[ "$line" == "$prefix"[:\ ]* ]]; then
+          line="${line:${#prefix}}"
+          line="${line#:}"
+          line="${line# }"
+          if [[ "$opt" == -X ]]; then
+            line="${line#\"}"
+            printf -- '-x %s\n' "${line%\"}"
+          else
+            printf '%s\n' "$line"
+          fi
+          return 0
+        fi
+      done < <(bind "$opt")
+    done
+    return 1
+  }
+
+  # Ctrl+x alone: when the next key does not follow within keyseq-timeout,
+  # show a hint in place of the command line, then run whatever Ctrl+x <key>
+  # is bound to. Readline functions and macros are run through the
+  # "\C-x\C-_a" key, which is rebound here and invoked right after this.
+  __shirube_prefix() {
+    local key binding hint="$__shirube_prefix_hint"
+    # Keep the hint on one line so that "\r\e[J" below erases all of it
+    ((${#hint} + 3 > ${COLUMNS:-80})) && hint="${hint:0:${COLUMNS:-80}-3}"
+    printf '\r\e[J\e[7m %s \e[m' "$hint" >/dev/tty
+    IFS= read -rsn1 key </dev/tty
+    printf '\r\e[J' >/dev/tty
+    if [[ -n "$key" && "$key" != $'\e' ]]; then
+      binding="$(__shirube_prefix_lookup "$key")"
+    fi
+    if [[ "$binding" == "-x "* ]]; then
+      eval "${binding#-x }"
+      binding=""
+    fi
+    bind "\"\\C-x\\C-_a\": ${binding:-\"\"}"
+  }
+
+  bind -x '"\C-x\C-_s": __shirube_prefix'
+  bind '"\C-x\C-_a": ""'
+  bind '"\C-x": "\C-x\C-_s\C-x\C-_a"'
 fi
