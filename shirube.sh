@@ -319,7 +319,9 @@ elif [[ -n "$BASH_VERSION" ]]; then
   __shirube_ghq() {
     local dir
     dir="$(__shirube_select_ghq)"
-    [[ -n "$dir" ]] && builtin cd -- "$dir"
+    if [[ -n "$dir" ]]; then
+      builtin cd -- "$dir" || return
+    fi
   }
 
   __shirube_worktree() {
