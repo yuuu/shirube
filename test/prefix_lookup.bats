@@ -58,3 +58,15 @@ setup() {
   assert_failure
   assert_output ""
 }
+
+@test "__shirube_prefix_hint: shows colored keys and descriptions" {
+  COLUMNS=80 run __shirube_prefix_hint
+  assert_success
+  assert_output $'\e[1;30;46m C-x \e[m  \e[1;33mg\e[m ghq  \e[1;33mw\e[m worktree  \e[1;33mb\e[m branch  \e[1;33mp\e[m pr  \e[1;33mi\e[m issue  \e[90mEsc cancel\e[m'
+}
+
+@test "__shirube_prefix_hint: drops entries that do not fit in the terminal" {
+  COLUMNS=30 run __shirube_prefix_hint
+  assert_success
+  assert_output $'\e[1;30;46m C-x \e[m  \e[1;33mg\e[m ghq  \e[1;33mw\e[m worktree'
+}
