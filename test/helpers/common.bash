@@ -53,8 +53,11 @@ create_empty_mock() {
 }
 
 # Source shirube.sh into the current shell, resetting the double-source guard first.
+# Unless SHIRUBE_CONFIG is set by the test, no config file is read, so all
+# modules are enabled regardless of the developer's own config.
 load_shirube() {
   unset SHIRUBE_LOADED
+  export SHIRUBE_CONFIG="${SHIRUBE_CONFIG:-$BATS_TEST_TMPDIR/no-config}"
   # shellcheck source=../../shirube.sh
   # Shadow the `bind` built-in with a no-op so that `bind -x ...` in shirube.sh's
   # bash section does not fail in non-interactive test shells (readline not loaded).

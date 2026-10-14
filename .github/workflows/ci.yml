@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: shellcheck shirube.sh shirube.bash shirube.zsh shirube.plugin.bash shirube.plugin.zsh
+      - run: shellcheck shirube.sh shirube.bash shirube.zsh shirube.plugin.bash shirube.plugin.zsh modules/*.sh
 
   test:
     name: bats (${{ matrix.os }})

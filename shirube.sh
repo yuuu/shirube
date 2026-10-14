@@ -10,294 +10,106 @@ if ! command -v fzf &>/dev/null; then
   return 1 2>/dev/null || exit 1
 fi
 
+# Directory of this file, where modules/ is looked up
+if [[ -n "$ZSH_VERSION" ]]; then
+  SHIRUBE_DIR="${(%):-%x}"
+else
+  SHIRUBE_DIR="${BASH_SOURCE[0]}"
+fi
+SHIRUBE_DIR="$(cd "$(dirname "$SHIRUBE_DIR")" && pwd)"
+
 # ==========================================================
-# Common selection functions
+# Modules and configuration
 # ==========================================================
 
-# Select a ghq-managed repository via fzf.
-# Prints the selected full path to stdout.
-__shirube_select_ghq() {
-  if ! command -v ghq &>/dev/null; then
-    echo "shirube: ghq is not installed" >&2
-    return 1
-  fi
+# Built-in modules, in the order they are loaded and listed in the Ctrl+x
+# hint. Each one lives in modules/<name>.sh.
+__shirube_modules=(ghq worktree branch pr issue history)
 
-  ghq list --full-path | fzf --reverse --prompt='ghq> ' \
-    --preview 'ls -p {}'
-}
+# Names of the modules turned off in the config file, as " name name ".
+__shirube_disabled=" "
 
-# Select a git worktree via fzf (supports ctrl-n/ctrl-r).
-# Output: line 1 = "select", "new", or "delete", line 2 = branch name.
-__shirube_select_worktree() {
-  if ! command -v git &>/dev/null; then
-    echo "shirube: git is not installed" >&2
-    return 1
-  fi
-
-  local result query key selection
-  result="$(command git worktree list 2>/dev/null \
-    | fzf --reverse --prompt='worktree> ' \
-          --header='ctrl-n: new / ctrl-r: delete' \
-          --preview 'git -C {1} log --oneline -20' \
-          --print-query --expect=ctrl-n,ctrl-r \
-          --bind ctrl-r:accept)"
-  [[ -z "$result" ]] && return 1
-
-  query="$(sed -n '1p' <<< "$result")"
-  key="$(sed -n '2p' <<< "$result")"
-  selection="$(sed -n '3p' <<< "$result")"
-
-  if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
-    printf 'new\n%s' "$query"
-  elif [[ "$key" == "ctrl-r" && -n "$selection" ]]; then
-    local branch wt_path
-    wt_path="$(awk '{print $1}' <<< "$selection")"
-    branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
-    [[ -n "$branch" ]] && printf 'delete\n%s\n%s' "$branch" "$wt_path"
-  elif [[ -n "$selection" ]]; then
-    local branch wt_path
-    wt_path="$(awk '{print $1}' <<< "$selection")"
-    branch="$(grep -o '\[.*\]' <<< "$selection" | tr -d '[]')"
-    [[ -n "$branch" ]] && printf 'select\n%s\n%s' "$branch" "$wt_path"
-  fi
-}
-
-# Select a git branch via fzf (supports ctrl-n/ctrl-r).
-# Output: line 1 = "select", "new", or "delete", line 2 = branch name.
-__shirube_select_branch() {
-  if ! command -v git &>/dev/null; then
-    echo "shirube: git is not installed" >&2
-    return 1
-  fi
-
-  local result query key selection
-  result="$(git branch --all 2>/dev/null \
-    | grep -v 'HEAD' \
-    | fzf --reverse --prompt='branch> ' \
-          --header='ctrl-n: new / ctrl-r: delete' \
-          --preview 'git log --oneline --graph -20 $(echo {} | sed "s/^[* ]*//" | sed "s|^remotes/[^/]*/||")' \
-          --print-query --expect=ctrl-n,ctrl-r \
-          --bind ctrl-r:accept)"
-  [[ -z "$result" ]] && return 1
-
-  query="$(sed -n '1p' <<< "$result")"
-  key="$(sed -n '2p' <<< "$result")"
-  selection="$(sed -n '3p' <<< "$result")"
-
-  if [[ "$key" == "ctrl-n" && -n "$query" ]]; then
-    printf 'new\n%s' "$query"
-  elif [[ "$key" == "ctrl-r" && -n "$selection" ]]; then
-    local branch
-    branch="$(echo "$selection" | sed 's/^[* ]*//' | sed 's|^remotes/[^/]*/||')"
-    [[ -n "$branch" ]] && printf 'delete\n%s' "$branch"
-  elif [[ -n "$selection" ]]; then
-    local branch
-    branch="$(echo "$selection" | sed 's/^[* ]*//' | sed 's|^remotes/[^/]*/||')"
-    [[ -n "$branch" ]] && printf 'select\n%s' "$branch"
-  fi
-}
-
-# Select a GitHub PR via fzf (supports ctrl-o to open in browser).
-# Output: line 1 = "select" or "open", line 2 = PR number.
-__shirube_select_pr() {
-  if ! command -v gh &>/dev/null; then
-    echo "shirube: gh (GitHub CLI) is not installed" >&2
-    return 1
-  fi
-
-  local result key line pr_number
-  result="$(gh pr list 2>/dev/null \
-    | fzf --reverse --prompt='pr> ' \
-          --header='ctrl-o: open in browser' \
-          --preview 'gh pr view {1}' \
-          --print-query --expect=ctrl-o)"
-  [[ -z "$result" ]] && return 1
-
-  key="$(sed -n '2p' <<< "$result")"
-  line="$(sed -n '3p' <<< "$result")"
-  [[ -z "$line" ]] && return 1
-
-  pr_number="$(echo "$line" | awk '{print $1}')"
-  if [[ "$key" == "ctrl-o" ]]; then
-    printf 'open\n%s' "$pr_number"
-  else
-    printf 'select\n%s' "$pr_number"
-  fi
-}
-
-# Select a GitHub Issue via fzf.
-# Prints the selected issue number to stdout.
-__shirube_select_issue() {
-  if ! command -v gh &>/dev/null; then
-    echo "shirube: gh (GitHub CLI) is not installed" >&2
-    return 1
-  fi
-
-  local line
-  line="$(gh issue list 2>/dev/null \
-    | fzf --reverse --prompt='issue> ' \
-          --preview 'gh issue view {1}')"
-  [[ -z "$line" ]] && return 1
-
-  echo "$line" | awk '{print $1}'
-}
-
-# Remove a git worktree, falling back to rm -rf + prune for worktrees containing submodules.
-__shirube_worktree_remove() {
-  local wt_path="$1" branch="$2"
-  local err rc
-  err="$(git worktree remove "$wt_path" 2>&1)"
-  rc=$?
-  if [[ $rc -ne 0 ]]; then
-    if [[ "$err" == *"submodule"* ]]; then
-      rm -rf "$wt_path" && git worktree prune
-    else
-      echo "$err" >&2
-      return 1
+# Read the config file: one "<module> = on|off" per line, # starts a comment.
+# Modules not mentioned stay enabled.
+__shirube_load_config() {
+  local file="$1" line key value lineno=0
+  [[ -f "$file" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    lineno=$((lineno + 1))
+    line="${line%%"#"*}"
+    [[ "$line" == *[![:space:]]* ]] || continue
+    key="${line%%=*}"
+    value="${line#*=}"
+    key="${key//[[:space:]]/}"
+    value="${value//[[:space:]]/}"
+    if [[ "$line" != *=* || " ${__shirube_modules[*]} " != *" $key "* ]]; then
+      echo "shirube: ${file}:${lineno}: unknown setting '${key}'" >&2
+      continue
     fi
-  fi
-  git branch -d "$branch"
+    case "$value" in
+      on | true | yes | 1) __shirube_disabled="${__shirube_disabled// $key / }" ;;
+      off | false | no | 0) __shirube_disabled="${__shirube_disabled// $key / } $key " ;;
+      *) echo "shirube: ${file}:${lineno}: invalid value '${value}' for ${key} (use on or off)" >&2 ;;
+    esac
+  done < "$file"
 }
 
-# Copy files listed in .worktreeinclude from main_root to new_path.
-# Lines starting with # and empty lines are skipped.
-# Trailing slashes (directory markers) are stripped before matching.
-__shirube_worktree_copy_includes() {
-  local main_root="$1" new_path="$2"
-  local include_file="${main_root}/.worktreeinclude"
-  [[ -f "$include_file" ]] || return 0
-  local pattern
-  while IFS= read -r pattern || [[ -n "$pattern" ]]; do
-    [[ -z "$pattern" || "$pattern" == "#"* ]] && continue
-    local stripped="${pattern%/}"
-    local src="${main_root}/${stripped}"
-    [[ -e "$src" ]] || continue
-    local dst="${new_path}/${stripped}"
-    mkdir -p "$(dirname "$dst")"
-    cp -r "$src" "$dst"
-  done < "$include_file"
+# Succeed if the given module is enabled.
+__shirube_enabled() {
+  [[ "$__shirube_disabled" != *" $1 "* ]]
+}
+
+# Keys listed in the hint shown when Ctrl+x is pressed and the next key has
+# not been typed yet, as "<key>:<description>". Filled by __shirube_register.
+__shirube_prefix_keys=()
+
+# Called by each module to bind its key. The module provides
+# __shirube_<name>_command, which runs the selection and prints the result
+# (exit status non-zero when cancelled). <key> is in bindkey notation
+# ("^xg", "^r") and <mode> decides what happens to the printed result:
+#   submit  run it as a command line, as if typed and Enter pressed, so that
+#           prompts reflecting $PWD or the branch are regenerated
+#   run     run it in place without submitting (bash; same as submit in zsh)
+#   insert  put it on the command line for the user to review or edit;
+#           the current line is passed as $1
+__shirube_register() {
+  local name="$1" key="$2" mode="$3"
+  if [[ "$key" == "^x"? ]]; then
+    __shirube_prefix_keys+=("${key#"^x"}:${name}")
+  fi
+  __shirube_bind "$name" "$key" "$mode"
 }
 
 # ==========================================================
 # Shell-specific integration
 # ==========================================================
 
-# Keys listed in the hint shown when Ctrl+x is pressed and the next key has
-# not been typed yet, as "<key>:<description>".
-__shirube_prefix_keys=(g:ghq w:worktree b:branch p:pr i:issue)
-
 if [[ -n "$ZSH_VERSION" ]]; then
   # --------------------------------------------------------
   # zsh: widgets + bindkey
   # --------------------------------------------------------
 
-  shirube-ghq-widget() {
+  # Each module gets a widget named shirube-<name>-widget, whose function
+  # calls the one below for its mode with the module name. The name is passed
+  # explicitly because $WIDGET is not updated when a widget is run through
+  # `zle <widget>` from another one, as shirube-prefix-widget does.
+  __shirube_widget_submit() {
     setopt localoptions pipefail no_aliases 2>/dev/null
-    local dir
-    dir="$(__shirube_select_ghq)"
-    if [[ -z "$dir" ]]; then
+    local cmd
+    cmd="$("__shirube_$1_command")"
+    if [[ -z "$cmd" ]]; then
       zle redisplay
       return 0
     fi
     zle push-line
-    BUFFER="builtin cd -- ${(q)dir}"
+    BUFFER="$cmd"
     zle accept-line
   }
-  zle -N shirube-ghq-widget
-  bindkey '^xg' shirube-ghq-widget
 
-  shirube-worktree-widget() {
-    setopt localoptions pipefail no_aliases 2>/dev/null
-    local result action branch wt_path
-    result="$(__shirube_select_worktree)"
-    if [[ -z "$result" ]]; then
-      zle redisplay
-      return 0
-    fi
-    action="$(sed -n '1p' <<< "$result")"
-    branch="$(sed -n '2p' <<< "$result")"
-    wt_path="$(sed -n '3p' <<< "$result")"
-    zle push-line
-    if [[ "$action" == "select" ]]; then
-      BUFFER="builtin cd -- ${(q)wt_path}"
-    elif [[ "$action" == "new" ]]; then
-      local main_root new_path
-      main_root="$(command git worktree list | awk 'NR==1 {print $1}')"
-      new_path="${main_root}/.worktrees/${branch}"
-      BUFFER="git worktree add ${(q)new_path} -b ${(q)branch} && builtin cd -- ${(q)new_path} && __shirube_worktree_copy_includes ${(q)main_root} ${(q)new_path}"
-    elif [[ "$action" == "delete" ]]; then
-      BUFFER="__shirube_worktree_remove ${(q)wt_path} ${(q)branch}"
-    fi
-    zle accept-line
-  }
-  zle -N shirube-worktree-widget
-  bindkey '^xw' shirube-worktree-widget
-
-  shirube-branch-widget() {
-    setopt localoptions pipefail no_aliases 2>/dev/null
-    local result action branch
-    result="$(__shirube_select_branch)"
-    if [[ -z "$result" ]]; then
-      zle redisplay
-      return 0
-    fi
-    action="$(sed -n '1p' <<< "$result")"
-    branch="$(sed -n '2p' <<< "$result")"
-    zle push-line
-    if [[ "$action" == "new" ]]; then
-      BUFFER="git checkout -b ${(q)branch}"
-    elif [[ "$action" == "delete" ]]; then
-      BUFFER="git branch -d ${(q)branch}"
-    else
-      BUFFER="git checkout ${(q)branch}"
-    fi
-    zle accept-line
-  }
-  zle -N shirube-branch-widget
-  bindkey '^xb' shirube-branch-widget
-
-  shirube-pr-widget() {
-    setopt localoptions pipefail no_aliases 2>/dev/null
-    local result action pr_number
-    result="$(__shirube_select_pr)"
-    if [[ -z "$result" ]]; then
-      zle redisplay
-      return 0
-    fi
-    action="$(sed -n '1p' <<< "$result")"
-    pr_number="$(sed -n '2p' <<< "$result")"
-    zle push-line
-    if [[ "$action" == "open" ]]; then
-      BUFFER="gh pr view --web ${pr_number}"
-    else
-      BUFFER="gh pr checkout ${pr_number}"
-    fi
-    zle accept-line
-  }
-  zle -N shirube-pr-widget
-  bindkey '^xp' shirube-pr-widget
-
-  shirube-issue-widget() {
-    setopt localoptions pipefail no_aliases 2>/dev/null
-    local issue_number
-    issue_number="$(__shirube_select_issue)"
-    if [[ -z "$issue_number" ]]; then
-      zle redisplay
-      return 0
-    fi
-    zle push-line
-    BUFFER="gh issue view --web ${issue_number}"
-    zle accept-line
-  }
-  zle -N shirube-issue-widget
-  bindkey '^xi' shirube-issue-widget
-
-  shirube-history-widget() {
+  __shirube_widget_insert() {
     setopt localoptions pipefail no_aliases 2>/dev/null
     local selected
-    selected="$(fc -rl 1 \
-      | awk '{ cmd=$0; sub(/^[ ]*[0-9]+\*?[ ]+/, "", cmd); if (!seen[cmd]++) print cmd }' \
-      | fzf --reverse --prompt='history> ' --query="$LBUFFER")"
+    selected="$("__shirube_$1_command" "$LBUFFER")"
     if [[ -z "$selected" ]]; then
       zle redisplay
       return 0
@@ -306,8 +118,15 @@ if [[ -n "$ZSH_VERSION" ]]; then
     RBUFFER=""
     zle reset-prompt
   }
-  zle -N shirube-history-widget
-  bindkey '^r' shirube-history-widget
+
+  __shirube_bind() {
+    local name="$1" key="$2" mode="$3" widget="shirube-$1-widget"
+    [[ "$mode" == run ]] && mode=submit
+    # shellcheck disable=SC2004 # functions is a zsh associative array
+    functions[$widget]="__shirube_widget_${mode} ${name}"
+    zle -N "$widget"
+    bindkey "$key" "$widget"
+  }
 
   # Ctrl+x alone: when the next key does not follow within KEYTIMEOUT, show a
   # hint below the command line, then run whatever Ctrl+x <key> is bound to.
@@ -346,116 +165,54 @@ if [[ -n "$ZSH_VERSION" ]]; then
       zle "$binding"
     fi
   }
-  zle -N shirube-prefix-widget
-  bindkey '^x' shirube-prefix-widget
+
+  __shirube_bind_prefix() {
+    zle -N shirube-prefix-widget
+    bindkey '^x' shirube-prefix-widget
+  }
 
 elif [[ -n "$BASH_VERSION" ]]; then
   # --------------------------------------------------------
   # bash: bind -x (bash 4+ required)
   # --------------------------------------------------------
 
-  # __shirube_ghq/worktree/branch/pr below are invoked by typing the
-  # function name into the line and pressing Enter for real (see the
-  # bindings at the bottom), so the cd/checkout happens as a normal
-  # top-level command and the next prompt is regenerated (git/dir-aware
-  # prompts like starship pick up the new $PWD/branch immediately).
-  # Running them via `bind -x` instead only redraws the *current* prompt
-  # line in place, so the change wouldn't be reflected until another
-  # Enter was pressed.
-  __shirube_ghq() {
-    local dir
-    dir="$(__shirube_select_ghq)"
-    if [[ -n "$dir" ]]; then
-      builtin cd -- "$dir" || return
-    fi
+  # Modules in "submit" mode are run by typing `__shirube_run <name>` into
+  # the line and pressing Enter for real (see __shirube_bind), so the
+  # cd/checkout happens as a normal top-level command and the next prompt is
+  # regenerated (git/dir-aware prompts like starship pick up the new
+  # $PWD/branch immediately). Running them via `bind -x` instead only
+  # redraws the *current* prompt line in place, so the change wouldn't be
+  # reflected until another Enter was pressed.
+  __shirube_run() {
+    local cmd
+    cmd="$("__shirube_$1_command")" || return 0
+    [[ -n "$cmd" ]] && eval "$cmd"
   }
 
-  __shirube_worktree() {
-    local result action branch path
-    result="$(__shirube_select_worktree)"
-    if [[ -n "$result" ]]; then
-      action="$(sed -n '1p' <<< "$result")"
-      branch="$(sed -n '2p' <<< "$result")"
-      path="$(sed -n '3p' <<< "$result")"
-      if [[ "$action" == "select" ]]; then
-        builtin cd -- "$path" || return
-      elif [[ "$action" == "new" ]]; then
-        local main_root new_path
-        main_root="$(git worktree list | awk 'NR==1 {print $1}')"
-        new_path="${main_root}/.worktrees/${branch}"
-        git worktree add "$new_path" -b "$branch" && { builtin cd -- "$new_path" || return; } && __shirube_worktree_copy_includes "$main_root" "$new_path"
-      elif [[ "$action" == "delete" ]]; then
-        __shirube_worktree_remove "$path" "$branch"
-      fi
-    fi
-  }
-
-  __shirube_branch() {
-    local result action branch
-    result="$(__shirube_select_branch)"
-    if [[ -n "$result" ]]; then
-      action="$(sed -n '1p' <<< "$result")"
-      branch="$(sed -n '2p' <<< "$result")"
-      if [[ "$action" == "new" ]]; then
-        git checkout -b "$branch"
-      elif [[ "$action" == "delete" ]]; then
-        git branch -d "$branch"
-      else
-        git checkout "$branch"
-      fi
-    fi
-  }
-
-  __shirube_pr() {
-    local result action pr_number
-    result="$(__shirube_select_pr)"
-    if [[ -n "$result" ]]; then
-      action="$(sed -n '1p' <<< "$result")"
-      pr_number="$(sed -n '2p' <<< "$result")"
-      if [[ "$action" == "open" ]]; then
-        gh pr view --web "$pr_number"
-      else
-        gh pr checkout "$pr_number"
-      fi
-    fi
-  }
-
-  __shirube_issue() {
-    local issue_number
-    issue_number="$(__shirube_select_issue)"
-    if [[ -n "$issue_number" ]]; then
-      gh issue view --web "$issue_number"
-    fi
+  # "run" mode, via bind -x: run the command in place and clear the line.
+  __shirube_run_in_place() {
+    __shirube_run "$1"
     READLINE_LINE=""
     READLINE_POINT=0
   }
 
-  __shirube_history() {
-    local selected
-    selected="$(builtin fc -lnr -2147483648 \
-      | awk '!seen[$0]++' \
-      | fzf --reverse --prompt='history> ' --query="$READLINE_LINE")"
-    if [[ -n "$selected" ]]; then
-      READLINE_LINE="$selected"
-      READLINE_POINT=${#READLINE_LINE}
-    else
-      READLINE_LINE=""
-      READLINE_POINT=0
-    fi
+  # "insert" mode, via bind -x: replace the line with the selection.
+  __shirube_insert() {
+    READLINE_LINE="$("__shirube_$1_command" "$READLINE_LINE")"
+    READLINE_POINT=${#READLINE_LINE}
   }
 
-  # \C-u (unix-line-discard) clears whatever was on the line first, unlike
-  # \C-a\C-k which relies on emacs-only bindings; it also works under
-  # `set -o vi`. \C-m (Enter) then submits the typed command for real.
-  bind '"\C-xg": "\C-u__shirube_ghq\C-m"'
-  bind '"\C-xw": "\C-u__shirube_worktree\C-m"'
-  bind '"\C-xb": "\C-u__shirube_branch\C-m"'
-  bind '"\C-xp": "\C-u__shirube_pr\C-m"'
-  # \C-xi/\C-r don't change anything the prompt reflects (issue view just
-  # opens a browser; history search only fills in the line for the user to
-  # review/edit), so they stay on `bind -x` rather than auto-submitting.
-  bind -x '"\C-xi": __shirube_issue'
-  bind -x '"\C-r": __shirube_history'
+  __shirube_bind() {
+    local name="$1" key="${2//^/\\C-}" mode="$3"
+    case "$mode" in
+      # \C-u (unix-line-discard) clears whatever was on the line first,
+      # unlike \C-a\C-k which relies on emacs-only bindings; it also works
+      # under `set -o vi`. \C-m (Enter) then submits the typed command.
+      submit) bind "\"${key}\": \"\\C-u__shirube_run ${name}\\C-m\"" ;;
+      run) bind -x "\"${key}\": __shirube_run_in_place ${name}" ;;
+      insert) bind -x "\"${key}\": __shirube_insert ${name}" ;;
+    esac
+  }
 
   # Look up what "\C-x<key>" is bound to and print it as a readline binding:
   # "-x <command>" for bind -x, otherwise a function name or quoted macro.
@@ -529,7 +286,27 @@ elif [[ -n "$BASH_VERSION" ]]; then
     bind "\"\\C-x\\C-_a\": ${binding:-\"\"}"
   }
 
-  bind -x '"\C-x\C-_s": __shirube_prefix'
-  bind '"\C-x\C-_a": ""'
-  bind '"\C-x": "\C-x\C-_s\C-x\C-_a"'
+  __shirube_bind_prefix() {
+    bind -x '"\C-x\C-_s": __shirube_prefix'
+    bind '"\C-x\C-_a": ""'
+    bind '"\C-x": "\C-x\C-_s\C-x\C-_a"'
+  }
+fi
+
+# ==========================================================
+# Loading
+# ==========================================================
+
+__shirube_load_config "${SHIRUBE_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/shirube/config}"
+
+for __shirube_module in "${__shirube_modules[@]}"; do
+  if __shirube_enabled "$__shirube_module"; then
+    source "${SHIRUBE_DIR}/modules/${__shirube_module}.sh"
+  fi
+done
+unset __shirube_module
+
+# Leave Ctrl+x untouched when no enabled module uses it
+if ((${#__shirube_prefix_keys[@]} > 0)); then
+  __shirube_bind_prefix
 fi
