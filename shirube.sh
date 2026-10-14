@@ -182,8 +182,9 @@ __shirube_worktree_copy_includes() {
 # Shell-specific integration
 # ==========================================================
 
-# Hint shown when Ctrl+x is pressed and the next key has not been typed yet.
-__shirube_prefix_hint='C-x  g:ghq  w:worktree  b:branch  p:pr  i:issue  (Esc: cancel)'
+# Keys listed in the hint shown when Ctrl+x is pressed and the next key has
+# not been typed yet, as "<key>:<description>".
+__shirube_prefix_keys=(g:ghq w:worktree b:branch p:pr i:issue)
 
 if [[ -n "$ZSH_VERSION" ]]; then
   # --------------------------------------------------------
@@ -310,12 +311,30 @@ if [[ -n "$ZSH_VERSION" ]]; then
 
   # Ctrl+x alone: when the next key does not follow within KEYTIMEOUT, show a
   # hint below the command line, then run whatever Ctrl+x <key> is bound to.
+  # The hint is drawn through POSTDISPLAY and region_highlight (offsets count
+  # from the start of BUFFER) so that it can be colored, unlike `zle -R`.
   shirube-prefix-widget() {
-    local key seq binding
-    zle -R "$__shirube_prefix_hint"
-    read -r -k 1 key || return 0
-    zle -R ""
-    [[ "$key" == $'\e' ]] && return 0
+    local key seq binding item k hint start
+    local saved_postdisplay="$POSTDISPLAY"
+    local -a saved_highlight=("${region_highlight[@]}")
+    hint=$'\n C-x '
+    region_highlight+=("$((${#BUFFER} + 1)) $((${#BUFFER} + ${#hint})) fg=black,bg=cyan,bold")
+    for item in "${__shirube_prefix_keys[@]}"; do
+      k="${item%%:*}"
+      start=$((${#BUFFER} + ${#hint} + 2))
+      hint+="  $k ${item#*:}"
+      region_highlight+=("$start $((start + ${#k})) fg=yellow,bold")
+    done
+    start=$((${#BUFFER} + ${#hint} + 2))
+    hint+="  Esc cancel"
+    region_highlight+=("$start $((${#BUFFER} + ${#hint})) fg=8")
+    POSTDISPLAY="$hint"
+    zle -R
+    read -r -k 1 key
+    POSTDISPLAY="$saved_postdisplay"
+    region_highlight=("${saved_highlight[@]}")
+    zle -R
+    [[ -z "$key" || "$key" == $'\e' ]] && return 0
     case "$key" in
       '^') seq='\^' ;;
       "\\") seq="\\\\" ;;
@@ -473,15 +492,31 @@ elif [[ -n "$BASH_VERSION" ]]; then
     return 1
   }
 
+  # Print the colored hint for __shirube_prefix, dropping trailing entries
+  # that would not fit in the terminal width so that it stays on one line.
+  __shirube_prefix_hint() {
+    local item key desc width=5 cols="${COLUMNS:-80}"
+    printf '\e[1;30;46m C-x \e[m'
+    for item in "${__shirube_prefix_keys[@]}" "Esc:cancel"; do
+      key="${item%%:*}" desc="${item#*:}"
+      width=$((width + 3 + ${#key} + ${#desc}))
+      ((width >= cols)) && break
+      if [[ "$key" == Esc ]]; then
+        printf '  \e[90m%s %s\e[m' "$key" "$desc"
+      else
+        printf '  \e[1;33m%s\e[m %s' "$key" "$desc"
+      fi
+    done
+  }
+
   # Ctrl+x alone: when the next key does not follow within keyseq-timeout,
   # show a hint in place of the command line, then run whatever Ctrl+x <key>
   # is bound to. Readline functions and macros are run through the
   # "\C-x\C-_a" key, which is rebound here and invoked right after this.
   __shirube_prefix() {
-    local key binding hint="$__shirube_prefix_hint"
-    # Keep the hint on one line so that "\r\e[J" below erases all of it
-    ((${#hint} + 3 > ${COLUMNS:-80})) && hint="${hint:0:${COLUMNS:-80}-3}"
-    printf '\r\e[J\e[7m %s \e[m' "$hint" >/dev/tty
+    local key binding
+    # The hint fits on one line, so "\r\e[J" below erases all of it
+    printf '\r\e[J%s' "$(__shirube_prefix_hint)" >/dev/tty
     IFS= read -rsn1 key </dev/tty
     printf '\r\e[J' >/dev/tty
     if [[ -n "$key" && "$key" != $'\e' ]]; then
