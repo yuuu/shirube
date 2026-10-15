@@ -24,13 +24,14 @@ SHIRUBE_DIR="$(cd "$(dirname "$SHIRUBE_DIR")" && pwd)"
 
 # Built-in modules, in the order they are loaded and listed in the Ctrl+x
 # hint. Each one lives in modules/<name>.sh.
-__shirube_modules=(ghq worktree branch pr issue history)
+__shirube_modules=(ghq worktree branch pr issue backlog history)
 
-# Names of the modules turned off in the config file, as " name name ".
-__shirube_disabled=" "
+# Names of the disabled modules, as " name name ". backlog starts off since
+# it shares Ctrl+x i with issue; the config file can turn it on.
+__shirube_disabled=" backlog "
 
 # Read the config file: one "<module> = on|off" per line, # starts a comment.
-# Modules not mentioned stay enabled.
+# Modules not mentioned keep their default.
 __shirube_load_config() {
   local file="$1" line key value lineno=0
   [[ -f "$file" ]] || return 0
@@ -73,9 +74,14 @@ __shirube_prefix_keys=()
 #   insert  put it on the command line for the user to review or edit;
 #           the current line is passed as $1
 __shirube_register() {
-  local name="$1" key="$2" mode="$3"
+  local name="$1" key="$2" mode="$3" item
+  local -a kept=()
   if [[ "$key" == "^x"? ]]; then
-    __shirube_prefix_keys+=("${key#"^x"}:${name}")
+    # A module loaded later takes over the key, also in the hint
+    for item in "${__shirube_prefix_keys[@]}"; do
+      [[ "$item" == "${key#"^x"}:"* ]] || kept+=("$item")
+    done
+    __shirube_prefix_keys=("${kept[@]}" "${key#"^x"}:${name}")
   fi
   __shirube_bind "$name" "$key" "$mode"
 }

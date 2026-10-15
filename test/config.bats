@@ -13,11 +13,26 @@ write_config() {
   printf '%s\n' "$@" > "$SHIRUBE_CONFIG"
 }
 
-@test "config: all modules are enabled without a config file" {
+@test "config: all modules but backlog are enabled without a config file" {
   load_shirube
   assert_equal "${__shirube_prefix_keys[*]}" "g:ghq w:worktree b:branch p:pr i:issue"
   run type -t __shirube_history_command
   assert_output "function"
+  run type -t __shirube_backlog_command
+  assert_failure
+}
+
+@test "config: backlog = on takes over Ctrl+x i from issue" {
+  write_config "backlog = on"
+  bind_calls="$BATS_TEST_TMPDIR/bind_calls"
+  unset SHIRUBE_LOADED
+  bind() { printf '%s\n' "$*" >> "$bind_calls"; }
+  source "$BATS_TEST_DIRNAME/../shirube.sh"
+  unset -f bind
+  assert_equal "${__shirube_prefix_keys[*]}" "g:ghq w:worktree b:branch p:pr i:backlog"
+  # Bound after issue, so it is the binding that stays
+  run grep -F '"\C-xi"' "$bind_calls"
+  assert_line --index 1 '-x "\C-xi": __shirube_run_in_place backlog'
 }
 
 @test "config: off disables a module and skips loading it" {

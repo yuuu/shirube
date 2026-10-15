@@ -9,7 +9,7 @@ Press shortcut keys in your shell to search and select:
 | `Ctrl+x w` | Select a git worktree and jump to it (`Ctrl+n`: new / `Ctrl+r`: delete) |
 | `Ctrl+x b` | Select a git branch and check it out (`Ctrl+n`: new / `Ctrl+r`: delete) |
 | `Ctrl+x p` | Select a pull request from gh pr list and check it out (`Ctrl+o`: open in browser) |
-| `Ctrl+x i` | Select an issue from gh issue list and open it in browser |
+| `Ctrl+x i` | Select an issue from gh issue list and open it in browser (or from Backlog via `bee`, see [Configuration](#configuration)) |
 | `Ctrl+r` | Select a command from history and execute it |
 
 If you pause after pressing `Ctrl+x`, a hint listing the available keys is shown (below the command line in zsh, in place of it in bash). Press one of the keys to continue, or `Esc` to cancel. Other `Ctrl+x` bindings (e.g. `Ctrl+x Ctrl+e`) keep working as before.
@@ -23,6 +23,7 @@ Inspired by [anyframe](https://github.com/mollifier/anyframe).
   - `ghq` - Repository management (`Ctrl+x g`)
   - `git` - Branch and worktree operations (`Ctrl+x b`, `Ctrl+x w`)
   - `gh` - GitHub CLI (`Ctrl+x p`, `Ctrl+x i`)
+  - `bee` - [Backlog CLI](https://github.com/nulab/bee) (`Ctrl+x i` with the `backlog` module)
 
 ## Installation
 
@@ -54,7 +55,7 @@ source /path/to/shirube/shirube.bash
 
 ## Configuration
 
-Each shortcut is a module that can be turned on or off in `~/.config/shirube/config` (or `$XDG_CONFIG_HOME/shirube/config`; set `SHIRUBE_CONFIG` to use another path). Write one `<module> = on|off` per line; modules not mentioned stay enabled.
+Each shortcut is a module that can be turned on or off in `~/.config/shirube/config` (or `$XDG_CONFIG_HOME/shirube/config`; set `SHIRUBE_CONFIG` to use another path). Write one `<module> = on|off` per line; modules not mentioned keep their default (on, except `backlog`).
 
 ```ini
 # ~/.config/shirube/config
@@ -69,7 +70,15 @@ issue = off
 | `branch` | `Ctrl+x b` |
 | `pr` | `Ctrl+x p` |
 | `issue` | `Ctrl+x i` |
+| `backlog` (off by default) | `Ctrl+x i` |
 | `history` | `Ctrl+r` |
+
+`backlog` selects an issue from `bee issue list` (with a preview from `bee issue view`) and opens it in the browser. It shares `Ctrl+x i` with `issue`, so it is off by default; `backlog = on` makes `Ctrl+x i` use Backlog instead of GitHub. Set `BACKLOG_PROJECT` to list only one project's issues.
+
+```ini
+# ~/.config/shirube/config
+backlog = on
+```
 
 `true`/`yes`/`1` and `false`/`no`/`0` are accepted as well. Disabled modules are not loaded and leave their keys untouched; the `Ctrl+x` hint lists only the enabled ones, and when none of the `Ctrl+x` modules is enabled, `Ctrl+x` itself is left alone. The config is read when SHIRUBE is loaded, so restart the shell after editing it.
 

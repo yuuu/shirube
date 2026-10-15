@@ -91,6 +91,18 @@ setup() {
   assert_output 'gh issue view --web 7'
 }
 
+@test "__shirube_backlog_command: opens the selected issue" {
+  export SHIRUBE_CONFIG="$BATS_TEST_TMPDIR/config"
+  echo "backlog = on" > "$SHIRUBE_CONFIG"
+  load_shirube
+  create_mock "bee" ""
+  set_fzf_output "PROJ-12  未対応  タスク  中  Alice  Issue title"
+
+  run __shirube_backlog_command
+  assert_success
+  assert_output 'bee issue view --web PROJ-12'
+}
+
 @test "__shirube_run: evaluates the module command in the current shell" {
   __shirube_fake_command() { printf 'builtin cd -- %q' "$BATS_TEST_TMPDIR"; }
   __shirube_run fake
