@@ -9,8 +9,6 @@ load 'helpers/common.bash'
 
 setup() {
   setup_mocks
-  export SHIRUBE_CONFIG="$BATS_TEST_TMPDIR/config"
-  echo "backlog = on" > "$SHIRUBE_CONFIG"
   load_shirube
 }
 

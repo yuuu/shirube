@@ -1,6 +1,5 @@
-# shirube module: backlog (Ctrl+x i)
+# shirube module: backlog (Ctrl+x a)
 # Select a Backlog issue via bee and open it in the browser.
-# Off by default; when turned on it takes over Ctrl+x i from the issue module.
 
 # Select a Backlog issue via fzf.
 # Prints the selected issue key to stdout.
@@ -30,4 +29,4 @@ __shirube_backlog_command() {
 }
 
 # Like the issue module, opening a browser runs in place.
-__shirube_register backlog '^xi' run
+__shirube_register backlog '^xa' run
