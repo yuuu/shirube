@@ -10,6 +10,7 @@ Press shortcut keys in your shell to search and select:
 | `Ctrl+x b` | Select a git branch and check it out (`Ctrl+n`: new / `Ctrl+r`: delete) |
 | `Ctrl+x p` | Select a pull request from gh pr list and check it out (`Ctrl+o`: open in browser) |
 | `Ctrl+x i` | Select an issue from gh issue list and open it in browser |
+| `Ctrl+x a` | Select a Backlog issue from bee issue list and open it in browser |
 | `Ctrl+r` | Select a command from history and execute it |
 
 If you pause after pressing `Ctrl+x`, a hint listing the available keys is shown (below the command line in zsh, in place of it in bash). Press one of the keys to continue, or `Esc` to cancel. Other `Ctrl+x` bindings (e.g. `Ctrl+x Ctrl+e`) keep working as before.
@@ -23,6 +24,7 @@ Inspired by [anyframe](https://github.com/mollifier/anyframe).
   - `ghq` - Repository management (`Ctrl+x g`)
   - `git` - Branch and worktree operations (`Ctrl+x b`, `Ctrl+x w`)
   - `gh` - GitHub CLI (`Ctrl+x p`, `Ctrl+x i`)
+  - `bee` - [Backlog CLI](https://github.com/nulab/bee) (`Ctrl+x a`)
 
 ## Installation
 
@@ -69,7 +71,10 @@ issue = off
 | `branch` | `Ctrl+x b` |
 | `pr` | `Ctrl+x p` |
 | `issue` | `Ctrl+x i` |
+| `backlog` | `Ctrl+x a` |
 | `history` | `Ctrl+r` |
+
+`backlog` lists issues from the whole Backlog space; set `BACKLOG_PROJECT` to list only one project's issues.
 
 `true`/`yes`/`1` and `false`/`no`/`0` are accepted as well. Disabled modules are not loaded and leave their keys untouched; the `Ctrl+x` hint lists only the enabled ones, and when none of the `Ctrl+x` modules is enabled, `Ctrl+x` itself is left alone. The config is read when SHIRUBE is loaded, so restart the shell after editing it.
 

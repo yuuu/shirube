@@ -24,7 +24,7 @@ SHIRUBE_DIR="$(cd "$(dirname "$SHIRUBE_DIR")" && pwd)"
 
 # Built-in modules, in the order they are loaded and listed in the Ctrl+x
 # hint. Each one lives in modules/<name>.sh.
-__shirube_modules=(ghq worktree branch pr issue history)
+__shirube_modules=(ghq worktree branch pr issue backlog history)
 
 # Names of the modules turned off in the config file, as " name name ".
 __shirube_disabled=" "
